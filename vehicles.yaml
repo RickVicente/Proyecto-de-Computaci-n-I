@@ -1,0 +1,11 @@
+# vehicles.yaml
+path: dataset
+train: images/train
+val: images/val
+
+# Clases del dataset
+names:
+  0: car
+  1: truck
+  2: bus
+  3: bike
