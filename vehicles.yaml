@@ -1,7 +1,7 @@
 # vehicles.yaml
-path: dataset
+path: Vehicle_Detection_Image_Dataset
 train: images/train
-val: images/val
+val: images/valid
 
 # Clases del dataset
 names:
