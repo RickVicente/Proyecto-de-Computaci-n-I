@@ -8,10 +8,6 @@ import cv2
 import numpy as np
 import re
 
-# ==========================
-# CONFIGURACIÓN
-# ==========================
-
 JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 
 CAMERAS = {
@@ -65,7 +61,7 @@ CAMERAS = {
 }
 
 desktop = Path("C:/Users/ricky/OneDrive/Escritorio")
-base_folder = desktop / "Camaras_Madrid"
+base_folder = desktop / "Nuevas_Camaras_Madrid_Filtradas"
 csv_path = Path("C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/fechas_imagenes.csv")
 
 # Crear carpetas
@@ -89,25 +85,18 @@ if not csv_path.exists():
 # Intervalo (17.5 minutos)
 INTERVALO = 17.5 * 60
 
-
-# ==========================
-# FUNCIONES
-# ==========================
-
 def cargar_datos_json(url):
-    """Descarga y prepara el diccionario con metadatos de las cámaras."""
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
 
-        # El JSON tiene una clave "camaras" que contiene la lista
         if isinstance(data, dict) and "camaras" in data:
             camaras = data["camaras"]
         elif isinstance(data, list):
             camaras = data
         else:
-            print("⚠️ Estructura JSON no esperada (no hay 'camaras').")
+            print("Estructura json no esperada (no hay camaras).")
             return {}
 
         cam_data = {}
@@ -116,35 +105,13 @@ def cargar_datos_json(url):
             if cam_id:
                 cam_data[cam_id] = cam
 
-        print(f"📥 JSON cargado correctamente con {len(cam_data)} cámaras.")
         return cam_data
 
     except Exception as e:
-        print(f"⚠️ No se pudo cargar el JSON: {e}")
+        print(f"No se pudo cargar el json: {e}")
         return {}
-
-
-def add_timestamp_to_image(image_bytes, timestamp):
-    """Añade texto con fecha/hora a la imagen descargada."""
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 1.0
-    color = (255, 255, 255)
-    thickness = 2
-    text_x = 10
-    text_y = img.shape[0] - 20
-
-    cv2.putText(img, timestamp, (text_x + 2, text_y + 2), font, font_scale, (0, 0, 0), thickness + 1)
-    cv2.putText(img, timestamp, (text_x, text_y), font, font_scale, color, thickness)
-
-    _, buffer = cv2.imencode(".jpg", img)
-    return buffer.tobytes()
-
-
+    
 def descargar_imagen(url, camera_id, cam_data):
-    """Descarga una imagen de cámara y la guarda con su metadata."""
     try:
         meta = cam_data.get(camera_id, {})
         carretera = meta.get("carretera", "desconocida")
@@ -160,14 +127,14 @@ def descargar_imagen(url, camera_id, cam_data):
         ahora = datetime.now()
         fecha = ahora.strftime("%Y-%m-%d")
         hora = ahora.strftime("%H:%M:%S")
-        timestamp = f"{fecha}_{hora.replace(':', '-')}"  # para nombre del archivo
+        timestamp = f"{fecha}_{hora.replace(':', '-')}"  
 
-        image_with_text = add_timestamp_to_image(response.content, f"{fecha} {hora}")
+        image_bytes = response.content
 
         folder = base_folder / camera_id
         filename = folder / f"{camera_id}_{timestamp}.jpg"
         with open(filename, "wb") as f:
-            f.write(image_with_text)
+            f.write(image_bytes)
 
         with open(csv_path, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
@@ -176,12 +143,7 @@ def descargar_imagen(url, camera_id, cam_data):
         print(f"✅ Imagen guardada y registrada: {filename}")
 
     except Exception as e:
-        print(f"❌ Error al descargar {camera_id}: {e}")
-
-
-# ==========================
-# BUCLE PRINCIPAL
-# ==========================
+        print(f"Error al descargar {camera_id}: {e}")
 
 def main():
     print(f"Iniciando monitoreo... guardando imágenes cada {INTERVALO/60:.1f} minutos.\n")
@@ -192,7 +154,7 @@ def main():
         for cam_id, url in CAMERAS.items():
             descargar_imagen(url, cam_id, cam_data)
 
-        print("\n⏳ Esperando próxima captura...\n")
+        print("\nEsperando próxima captura...\n")
         time.sleep(INTERVALO)
 
 
