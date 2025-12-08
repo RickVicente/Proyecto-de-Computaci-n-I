@@ -5,8 +5,8 @@ from ultralytics import YOLO
 from tqdm import tqdm
 import torch
 
-input_csv = "full_dataset.csv"
-output_csv = "dataset_completo.csv"
+input_csv    = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/dataset_num_vehiculos.csv"
+output_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/dataset_completo.csv"
 class_names = ["car", "truck", "bus", "bike"]
 
 model = YOLO("yolov8x-seg.pt")  
@@ -52,7 +52,7 @@ print(f"📄 CSV original cargado: {len(df)} filas")
 # === CALCULAR OCUPACIÓN VISUAL POR IMAGEN ===
 niveles = []
 
-for img_path in tqdm(df["image_path"], desc="Analizando imágenes con YOLOv8-seg"):
+for img_path in tqdm(df["url_camara"], desc="Analizando imágenes con YOLOv8-seg"):
     try:
         results = model(img_path)
         result = results[0]
