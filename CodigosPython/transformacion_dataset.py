@@ -1,7 +1,9 @@
 import pandas as pd
 
 # Dataset original
-df = pd.read_csv("dataset_completo.csv")
+metadata_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasetCompleto.csv"
+
+df = pd.read_csv(metadata_csv, encoding='utf-8')
 
 # Separar fecha y hora
 df[['anio', 'mes', 'dia']] = df['fecha_descarga'].str.split('-', expand=True)
@@ -38,7 +40,7 @@ cols_one_hot = ['franja_horaria_mañana','franja_horaria_noche','franja_horaria_
 df[cols_one_hot] = df[cols_one_hot].astype(int)
 
 # Eliminar columnas innecesarias
-df = df.drop(columns=['carretera','fecha_descarga','hora_descarga','url_camara', 'image_path'])
+df = df.drop(columns=['carretera','fecha_descarga','hora_descarga','url_camara']) # Quitar url_camara si se necesita cargar el dataset para CNN
 
 # Guardar dataset transformado
-df.to_csv("dataset_transformado.csv", index=False)
+df.to_csv("dataset_transformado_ML.csv", index=False)
