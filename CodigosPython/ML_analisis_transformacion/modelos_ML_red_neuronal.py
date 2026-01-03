@@ -10,11 +10,11 @@ from torch.utils.data import DataLoader, TensorDataset
 # ================================
 # 1. CARGA DE DATOS
 # ================================
-metadata_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/dataset_transformado_ML.csv"
+metadata_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/dataset_transformado_ML.csv"
 data = pd.read_csv(metadata_csv, encoding='utf-8')
 
 target_column = "nivel_ocupacion"
-X = data.drop(columns=[target_column]).values
+X = data.drop(columns=["id_entrada", "nivel_ocupacion"])  
 y = data[target_column].values  
 
 # ================================
@@ -96,5 +96,5 @@ print(confusion_matrix(y_test, predicted))
 # ================================
 # 6. GUARDADO DEL MODELO
 # ================================
-torch.save(model.state_dict(), "modelo_red_pytorch.pth")
+torch.save(model.state_dict(), "modelo_red_ML.pth")
 print("\nModelo guardado como 'modelo_red_pytorch.pth'")
