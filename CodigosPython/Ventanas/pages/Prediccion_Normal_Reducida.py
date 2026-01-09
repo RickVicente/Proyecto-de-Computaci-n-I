@@ -130,14 +130,24 @@ with col3:
         carretera_n = int(tipo_carretera == "N")
 
         mañana, tarde, noche = franja_horaria(hora_h)
+
+        camara_n = camara / 200000
+        anio_n = anio / 2030
+        mes_n = mes / 12
+        dia_n = dia / 31
+        hora_n = hora_h / 23
+        minuto_n = minuto / 59
         
-        X = np.array([[camara, anio, mes, dia, hora_h, minuto, num_carretera,
+        carreteras = [1, 2, 3, 4, 5, 6, 40, 42, 50, 614]
+        num_carretera_enc = carreteras.index(num_carretera)
+
+        X = np.array([[camara_n, anio_n, mes_n, dia_n, hora_n, minuto_n, num_carretera_enc,
                        carretera_a, carretera_m, carretera_n, mañana, noche, tarde]])
         
         prediccion = modelo.predict(X)
         nivel = niveles_trafico.get(prediccion[0], "Desconocido")
         
-        st.success("Datos guardados correctamente ✅")
+        st.success("Datos guardados correctamente")
         st.write("### Resumen de la predicción")
         st.write(f"- **Cámara Seleccionada:** {camara}")
         st.write(f"- **Fecha y Hora:** {fecha_hora.strftime('%d/%m/%Y %H:%M:%S')}")
