@@ -161,21 +161,36 @@ with col3:
         carretera_n = int(tipo_carretera == "N")
 
         mañana, tarde, noche = franja_horaria(hora_h)
+
+        camara_n = camara / 200000
+        num_coches_n = num_coches / 200
+        num_camiones_n = num_coches / 50
+        num_buses_n = num_coches / 30
+        num_motos_n = num_coches / 50
+        total_veh_n = total_veh / 330
+        anio_n = anio / 2030
+        mes_n = mes / 12
+        dia_n = dia / 31
+        hora_n = hora_h / 23
+        minuto_n = minuto / 59
+
+        carreteras = [1, 2, 3, 4, 5, 6, 40, 42, 50, 614]
+        num_carretera_enc = carreteras.index(num_carretera)
         
         # Crear array de predicción
         X = np.array([[
-            camara,
-            num_coches,
-            num_camiones,
-            num_buses,
-            num_motos,
-            total_veh,
-            anio, 
-            mes,
-            dia,
+            camara_n,
+            num_coches_n,
+            num_camiones_n,
+            num_buses_n,
+            num_motos_n,
+            total_veh_n,
+            anio_n, 
+            mes_n,
+            dia_n,
             hora_h,
-            minuto,
-            num_carretera,
+            minuto_n,
+            num_carretera_enc,
             carretera_a,
             carretera_m,
             carretera_n,

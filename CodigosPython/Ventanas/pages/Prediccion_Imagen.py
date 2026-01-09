@@ -152,7 +152,7 @@ with col2:
 with col3:
     if st.button("Predecir nivel de tráfico"):
         if imagen_file is None:
-            st.warning("⚠️ Sube una imagen para continuar")
+            st.warning("Sube una imagen para continuar")
             st.stop()
 
         image = Image.open(imagen_file).convert("RGB")
@@ -163,7 +163,16 @@ with col3:
         ])
         image_tensor = transform(image).unsqueeze(0)
 
+        anio = fecha.year
+        mes = fecha.month
+        dia = fecha.day
+
+        hora_h = hora.hour
+        minuto = hora.minute
+        segundo = hora.second
+
         total_veh = num_coches + num_camiones + num_buses + num_motos
+
         carretera_a = int(tipo_carretera == "A")
         carretera_m = int(tipo_carretera == "M")
         carretera_n = int(tipo_carretera == "N")
@@ -171,10 +180,25 @@ with col3:
         mañana, tarde, noche = franja_horaria(hora.hour)
         fecha_hora = datetime.combine(fecha, hora)
 
+        camara_n = camara / 200000
+        num_coches_n = num_coches / 200
+        num_camiones_n = num_coches / 50
+        num_buses_n = num_coches / 30
+        num_motos_n = num_coches / 50
+        total_veh_n = total_veh / 330
+        anio_n = anio / 2030
+        mes_n = mes / 12
+        dia_n = dia / 31
+        hora_n = hora_h / 23
+        minuto_n = minuto / 59
+
+        carreteras = [1, 2, 3, 4, 5, 6, 40, 42, 50, 614]
+        num_carretera_enc = carreteras.index(num_carretera)
+
         X = np.array([[  
-            camara, num_coches, num_camiones, num_buses, num_motos,
-            total_veh, fecha.year, fecha.month, fecha.day,
-            hora.hour, hora.minute, num_carretera,
+            camara_n, num_coches_n, num_camiones_n, num_buses_n, num_motos_n,
+            total_veh_n, anio_n, mes_n, dia_n,
+            hora_n, minuto_n, num_carretera_enc,
             carretera_a, carretera_m, carretera_n,
             mañana, noche, tarde
         ]], dtype=np.float32)
