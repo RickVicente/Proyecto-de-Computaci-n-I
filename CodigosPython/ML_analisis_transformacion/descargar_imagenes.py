@@ -1,12 +1,11 @@
 import os
 import time
-import requests
 import csv
+import requests
+import numpy as np
 from datetime import datetime
 from pathlib import Path
-import cv2
-import numpy as np
-import re
+from ultralytics import YOLO
 
 JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 
@@ -60,101 +59,158 @@ CAMERAS = {
     "175471": "https://infocar.dgt.es/etraffic/data/camaras/175471.jpg?t=1760174424650",
 }
 
-desktop = Path("C:/Users/ricky/OneDrive/Escritorio")
-base_folder = desktop / "Nuevas_Camaras_Madrid_Filtradas"
-csv_path = Path("C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/fechas_imagenes.csv")
+JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 
-# Crear carpetas
-for nombre in CAMERAS.keys():
-    (base_folder / nombre).mkdir(parents=True, exist_ok=True)
-
-# Crear CSV si no existe
-if not csv_path.exists():
-    with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            "camera_id",
-            "carretera",
-            "fecha_json",
-            "hora_json",
-            "fecha_descarga",
-            "hora_descarga",
-            "file_path"
-        ])
-
-# Intervalo (17.5 minutos)
 INTERVALO = 17.5 * 60
 
-def cargar_datos_json(url):
+BASE_FOLDER = Path("C:/Users/ricky/OneDrive/Escritorio/Nuevas_Camaras_Madrid_Filtradas")
+
+DATASET_CSV = Path(
+    "C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/3. datasetCompleto.csv"
+)
+
+MODEL = YOLO("yolov8x-seg.pt")
+MODEL.conf = 0.25
+
+CLASSES = ["car", "truck", "bus", "bike"]
+
+for cam_id in CAMERAS:
+    (BASE_FOLDER / cam_id).mkdir(parents=True, exist_ok=True)
+
+if not DATASET_CSV.exists():
+    with open(DATASET_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "id_entrada",
+            "id_camara",
+            "carretera",
+            "latitud",
+            "longitud",
+            "fecha_descarga",
+            "hora_descarga",
+            "url_camara",
+            "cars",
+            "trucks",
+            "buses",
+            "bikes",
+            "total",
+            "nivel_ocupacion"
+        ])
+
+def obtener_siguiente_id(dataset_csv):
+    if not dataset_csv.exists():
+        return 1
+
     try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-
-        if isinstance(data, dict) and "camaras" in data:
-            camaras = data["camaras"]
-        elif isinstance(data, list):
-            camaras = data
-        else:
-            print("Estructura json no esperada (no hay camaras).")
-            return {}
-
-        cam_data = {}
-        for cam in camaras:
-            cam_id = cam.get("id")
-            if cam_id:
-                cam_data[cam_id] = cam
-
-        return cam_data
-
+        with open(dataset_csv, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            ids = [int(row["id_entrada"]) for row in reader if row["id_entrada"].isdigit()]
+            return max(ids) + 1 if ids else 1
     except Exception as e:
-        print(f"No se pudo cargar el json: {e}")
+        print("No se pudo leer id_entrada, usando 1:", e)
+        return 1
+
+def cargar_json():
+    try:
+        r = requests.get(JSON_URL, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        return {str(c["id"]): c for c in data.get("camaras", [])}
+    except Exception as e:
+        print("Error JSON:", e)
         return {}
-    
-def descargar_imagen(url, camera_id, cam_data):
+
+def calcular_ocupacion(result):
+    if result.masks is None:
+        return 0.0
+
+    masks = result.masks.data.cpu().numpy()
+    cls_ids = result.boxes.cls.cpu().numpy()
+
+    combined = np.zeros(masks.shape[1:], dtype=bool)
+    for i, cls in enumerate(cls_ids):
+        if result.names[int(cls)] in CLASSES:
+            combined |= masks[i] > 0.5
+
+    return np.sum(combined) / combined.size
+
+
+def nivel_ocupacion(area):
+    if area < 0.02:
+        return 0
+    elif area < 0.07:
+        return 1
+    elif area < 0.15:
+        return 2
+    else:
+        return 3
+
+
+def procesar_camara(cam_id, url, cam_data, id_entrada):
     try:
-        meta = cam_data.get(camera_id, {})
-        carretera = meta.get("carretera", "desconocida")
-        fecha_json = meta.get("fecha", "N/A")
-        if " " in fecha_json:
-            fecha_json, hora_json = fecha_json.split(" ")
-        else:
-            hora_json = "N/A"
+        meta = cam_data.get(cam_id, {})
+        carretera = meta.get("carretera", "")
+        lat = meta.get("latitud", "")
+        lon = meta.get("longitud", "")
 
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        now = datetime.now()
+        fecha = now.strftime("%Y-%m-%d")
+        hora = now.strftime("%H:%M:%S")
 
-        ahora = datetime.now()
-        fecha = ahora.strftime("%Y-%m-%d")
-        hora = ahora.strftime("%H:%M:%S")
-        timestamp = f"{fecha}_{hora.replace(':', '-')}"  
+        img = requests.get(url, timeout=10).content
+        filename = f"{cam_id}_{fecha}_{hora.replace(':','-')}.jpg"
+        img_path = BASE_FOLDER / cam_id / filename
 
-        image_bytes = response.content
+        with open(img_path, "wb") as f:
+            f.write(img)
 
-        folder = base_folder / camera_id
-        filename = folder / f"{camera_id}_{timestamp}.jpg"
-        with open(filename, "wb") as f:
-            f.write(image_bytes)
+        result = MODEL(str(img_path))[0]
 
-        with open(csv_path, mode="a", newline="", encoding="utf-8") as f:
+        counts = {c: 0 for c in CLASSES}
+        for box in result.boxes:
+            cls = result.names[int(box.cls[0])]
+            if cls in counts:
+                counts[cls] += 1
+
+        area = calcular_ocupacion(result)
+        nivel = nivel_ocupacion(area)
+
+        with open(DATASET_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow([camera_id, carretera, fecha_json, hora_json, fecha, hora, str(filename)])
+            writer.writerow([
+                id_entrada,
+                cam_id,
+                carretera,
+                lat,
+                lon,
+                fecha,
+                hora,
+                str(img_path),
+                counts["car"],
+                counts["truck"],
+                counts["bus"],
+                counts["bike"],
+                sum(counts.values()),
+                nivel
+            ])
 
-        print(f"✅ Imagen guardada y registrada: {filename}")
+        print(f"{cam_id} | Vehículos: {sum(counts.values())} | Nivel: {nivel}")
 
     except Exception as e:
-        print(f"Error al descargar {camera_id}: {e}")
+        print(f"Error cámara {cam_id}:", e)
 
 def main():
-    print(f"Iniciando monitoreo... guardando imágenes cada {INTERVALO/60:.1f} minutos.\n")
+    print("Descarga + detección + ocupación automática\n")
+    id_entrada = obtener_siguiente_id(DATASET_CSV)
 
     while True:
-        cam_data = cargar_datos_json(JSON_URL)
+        cam_data = cargar_json()
 
         for cam_id, url in CAMERAS.items():
-            descargar_imagen(url, cam_id, cam_data)
+            procesar_camara(cam_id, url, cam_data, id_entrada)
+            id_entrada += 1
 
-        print("\nEsperando próxima captura...\n")
+        print("Esperando siguiente ciclo...\n")
         time.sleep(INTERVALO)
 
 
