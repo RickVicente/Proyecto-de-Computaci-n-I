@@ -38,17 +38,17 @@ def franja_horaria(hora):
 
 df['franja_horaria'] = df['hora'].apply(franja_horaria)
 
-# One-hot encoding para la franja horaria
 df = pd.get_dummies(df, columns=['franja_horaria'])
 cols_one_hot = ['franja_horaria_mañana','franja_horaria_noche','franja_horaria_tarde']
 df[cols_one_hot] = df[cols_one_hot].astype(int)
 
-# Eliminar columnas innecesarias
 df = df.drop(columns=['carretera','fecha_descarga','hora_descarga','segundo'])
 
 df['carretera_numero'] = label_encoder.fit_transform(df['carretera_numero'])
 
 variables = ['id_camara','latitud','longitud','anio','mes','dia','hora','minuto','carretera_numero','cars','trucks','buses','bikes','total']
 df[variables] = scalerX.fit_transform(df[variables])
-# Guardar dataset transformado
+
+df = df.sample(frac=1).reset_index(drop=True)
+
 df.to_csv(output_csv, index=False)
