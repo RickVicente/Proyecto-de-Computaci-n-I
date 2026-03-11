@@ -42,11 +42,11 @@ df = pd.get_dummies(df, columns=['franja_horaria'])
 cols_one_hot = ['franja_horaria_mañana','franja_horaria_noche','franja_horaria_tarde']
 df[cols_one_hot] = df[cols_one_hot].astype(int)
 
-df = df.drop(columns=['url_camara','carretera','fecha_descarga','hora_descarga','segundo'])
+df = df.drop(columns=['cars','trucks','buses','bikes','total','url_camara','carretera','fecha_descarga','hora_descarga','segundo'])
 
 df['carretera_numero'] = label_encoder.fit_transform(df['carretera_numero'])
 
-variables = ['latitud','longitud','anio','mes','dia','hora','minuto','carretera_numero','cars','trucks','buses','bikes','total']
+variables = ['latitud','longitud','anio','mes','dia','hora','minuto','carretera_numero']
 df[variables] = scalerX.fit_transform(df[variables])
 
 df = df.sample(frac=1).reset_index(drop=True)
