@@ -42,7 +42,7 @@ df = pd.get_dummies(df, columns=['franja_horaria'])
 cols_one_hot = ['franja_horaria_mañana','franja_horaria_noche','franja_horaria_tarde']
 df[cols_one_hot] = df[cols_one_hot].astype(int)
 
-df = df.drop(columns=['id_camara','carretera','fecha_descarga','hora_descarga','segundo'])
+df = df.drop(columns=['url_camara','carretera','fecha_descarga','hora_descarga','segundo'])
 
 df['carretera_numero'] = label_encoder.fit_transform(df['carretera_numero'])
 

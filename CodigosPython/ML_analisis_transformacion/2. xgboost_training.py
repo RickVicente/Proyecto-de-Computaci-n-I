@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score, f1_score
 from xgboost import XGBClassifier
 
-output_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/3. datasetNormalizadoSinImagen.csv"
+output_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/2. datasetNormalizado.csv"
 df = pd.read_csv(output_csv, encoding="utf-8")
 
 X = df.drop(columns=["id_entrada", "nivel_ocupacion"])
