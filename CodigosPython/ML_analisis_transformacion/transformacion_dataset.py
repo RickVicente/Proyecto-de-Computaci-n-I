@@ -1,4 +1,5 @@
 import pandas as pd
+import joblib
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 
 label_encoder = LabelEncoder()
@@ -46,9 +47,10 @@ df = df.drop(columns=['cars','trucks','buses','bikes','total','url_camara','carr
 
 df['carretera_numero'] = label_encoder.fit_transform(df['carretera_numero'])
 
-variables = ['latitud','longitud','anio','mes','dia','hora','minuto','carretera_numero']
+variables = ['id_camara','latitud','longitud','anio','mes','dia','hora','minuto','carretera_numero']
 df[variables] = scalerX.fit_transform(df[variables])
 
 df = df.sample(frac=1).reset_index(drop=True)
 
+joblib.dump(scalerX, "scaler.pkl")
 df.to_csv(output_csv, index=False)

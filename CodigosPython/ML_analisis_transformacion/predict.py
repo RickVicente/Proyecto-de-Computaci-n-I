@@ -1,28 +1,52 @@
 import xgboost as xgb
+import joblib
 import pandas as pd
 
 # Crear objeto modelo
 model = xgb.XGBClassifier()   # o XGBRegressor según tu caso
 
 # Cargar el modelo
-model.load_model("C:\Users\ricky\OneDrive\Universidad\3º Año\1 - Proyecto de Computación I\Proyecto de Computacion\ModelosIA\xgboost_model.json")
+model.load_model("ModelosIA\\xgboost_model.json")
 
-data = pd.DataFrame({
-    "id_camara":[10],
-    "longitud":[5.2],
-    "lagitud":[1],
-    "anio":[],
-    "mes":[],
-    "dia":[],
-    "hora":[],
-    "minuto":[],
-    "carretera_letra_A":[],
-    "carretera_letra_M":[],
-    "carretera_letra_N":[],
-    "franja_horaria_mañana":[],
-    "franja_horaria_noche":[],
-    "franja_horaria_tarde":[]
-})
+scaler = joblib.load("ModelosIA\\scaler.pkl")
 
-pred = model.predict(data)
+print(scaler.feature_names_in_)
+
+data = pd.DataFrame([{
+    "id_camara": 10,
+    "longitud": 1,
+    "latitud": 1,
+    "anio": 2026,
+    "mes": 3,
+    "dia": 12,
+    "hora": 14,
+    "minuto": 30,
+    "carretera_numero": 1,
+    "carretera_letra_A": 1,
+    "carretera_letra_M": 0,
+    "carretera_letra_N": 0,
+    "franja_horaria_mañana": 0,
+    "franja_horaria_noche": 0,
+    "franja_horaria_tarde": 1
+}])
+
+cols_scaler = scaler.feature_names_in_
+
+# normalizar solo esas
+scaled = scaler.transform(data[cols_scaler])
+
+scaled_df = pd.DataFrame(scaled, columns=cols_scaler)
+
+# columnas que no se normalizan
+extra = data.drop(columns=cols_scaler)
+
+# unir todo
+data_final = pd.concat([scaled_df, extra], axis=1)
+
+# asegurar orden correcto de columnas
+data_final = data_final[model.get_booster().feature_names]
+
+# predecir
+pred = model.predict(data_final)
+
 print(pred)
