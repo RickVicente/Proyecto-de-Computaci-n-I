@@ -881,20 +881,36 @@
             btn.classList.add('loading');
             btn.disabled = true;
 
-            await delay(1400);
+            try {
+                // Hacer petición POST al backend Flask
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: pass })
+                });
 
-            btn.classList.remove('loading');
-            btn.disabled = false;
+                const data = await res.json();
 
-            // Demo credentials — replace with real auth
-            if (email === 'admin' && pass === 'madrive2025') {
-                showAlert('success');
-                await delay(1200);
-                window.location.href = 'mapa_camaras_madrid.html';
-            } else {
-                showAlert('error', 'Usuario o contraseña incorrectos.');
-                pwInput.value = '';
-                pwInput.focus();
+                btn.classList.remove('loading');
+                btn.disabled = false;
+
+                if (res.ok && data.success) {
+                    // Login correcto
+                    showAlert('success', 'Acceso concedido. Redirigiendo...');
+                    await delay(800);
+                    window.location.href = data.redirect || '/mapa';
+                } else {
+                    // Login erróneo
+                    showAlert('error', data.message || 'Usuario o contraseña incorrectos.');
+                    pwInput.value = '';
+                    pwInput.focus();
+                }
+
+            } catch (err) {
+                console.error(err);
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                showAlert('error', 'Error de conexión con el servidor.');
             }
         });
 
