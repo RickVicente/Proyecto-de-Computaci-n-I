@@ -1,7 +1,12 @@
 import pandas as pd
+import joblib
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 
-# Dataset original
-metadata_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasetCompleto.csv"
+label_encoder = LabelEncoder()
+scalerX = MinMaxScaler()
+
+metadata_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/1. datasetCompleto.csv"
+output_csv   = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/2. datasetNormalizado.csv"
 
 df = pd.read_csv(metadata_csv, encoding='utf-8')
 
@@ -34,13 +39,18 @@ def franja_horaria(hora):
 
 df['franja_horaria'] = df['hora'].apply(franja_horaria)
 
-# One-hot encoding para la franja horaria
 df = pd.get_dummies(df, columns=['franja_horaria'])
 cols_one_hot = ['franja_horaria_mañana','franja_horaria_noche','franja_horaria_tarde']
 df[cols_one_hot] = df[cols_one_hot].astype(int)
 
-# Eliminar columnas innecesarias
-df = df.drop(columns=['carretera','fecha_descarga','hora_descarga','url_camara']) # Quitar url_camara si se necesita cargar el dataset para CNN
+df = df.drop(columns=['cars','trucks','buses','bikes','total','url_camara','carretera','fecha_descarga','hora_descarga','segundo'])
 
-# Guardar dataset transformado
-df.to_csv("dataset_transformado_ML.csv", index=False)
+df['carretera_numero'] = label_encoder.fit_transform(df['carretera_numero'])
+
+variables = ['id_camara','latitud','longitud','anio','mes','dia','hora','minuto','carretera_numero']
+df[variables] = scalerX.fit_transform(df[variables])
+
+df = df.sample(frac=1).reset_index(drop=True)
+
+joblib.dump(scalerX, "scaler.pkl")
+df.to_csv(output_csv, index=False)
