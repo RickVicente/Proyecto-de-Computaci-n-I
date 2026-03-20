@@ -5,39 +5,78 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MaDrive · Mapa de Cámaras de Tráfico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * {
+        *,
+        *::before,
+        *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        :root {
+            --blue-dark: #0d1f3c;
+            --blue-mid: #1a3a5c;
+            --blue-brand: #1565c0;
+            --blue-light: #1e5799;
+            --blue-accent: #2196f3;
+            --green-cam: #22cc44;
+            --white: #ffffff;
+            --glass-bg: rgba(13, 31, 60, 0.72);
+            --glass-border: rgba(33, 150, 243, 0.30);
+            --input-bg: rgba(255, 255, 255, 0.07);
+            --input-border: rgba(33, 150, 243, 0.40);
+            --text-muted: rgba(200, 225, 255, 0.65);
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f0f4f8;
-            color: #222;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: #081122; /* Fondo oscuro muy sutil para que empate con bordes y mapa si falla carga */
+            color: var(--white);
             height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         header {
-            background: linear-gradient(135deg, #1a3a5c 0%, #1e5799 50%, #1a3a5c 100%);
+            background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue-mid) 50%, var(--blue-dark) 100%);
             padding: 13px 24px;
             display: flex;
             align-items: center;
             gap: 16px;
-            box-shadow: 0 2px 12px rgba(0, 60, 140, 0.35);
+            border-bottom: 1px solid var(--glass-border);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
             z-index: 1000;
             flex-shrink: 0;
         }
 
         header h1 {
             font-size: 21px;
-            font-weight: 700;
+            font-weight: 800;
             letter-spacing: 2px;
-            color: #fff;
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1::before {
+            content: '🚦';
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            line-height: 36px;
+            text-align: center;
+            background: linear-gradient(135deg, var(--blue-brand), var(--blue-accent));
+            border-radius: 8px;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(21, 101, 192, 0.4);
         }
 
         .legend {
@@ -82,26 +121,27 @@
         }
 
         #stats-bar {
-            background: #fff;
+            background: var(--blue-dark);
             padding: 7px 24px;
             display: flex;
             gap: 28px;
             font-size: 12px;
-            border-bottom: 2px solid #e0e8f4;
+            border-bottom: 1px solid var(--glass-border);
             flex-shrink: 0;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .stat {
             display: flex;
             gap: 5px;
             align-items: center;
-            color: #444;
+            color: var(--text-muted);
         }
 
         .stat strong {
-            color: #1565c0;
+            color: var(--blue-accent);
             font-size: 14px;
+            font-weight: 700;
         }
 
         #loading-bar {
@@ -173,68 +213,73 @@
             text-decoration: none;
         }
 
-        /* Legend panel */
+        /* Legend panel flotante del mapa */
         #legend-panel {
-            background: rgba(255, 255, 255, 0.97);
-            border: 1.5px solid #c5d8f5;
-            border-radius: 10px;
-            padding: 12px 15px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 14px 18px;
             font-size: 12px;
-            font-family: 'Segoe UI', sans-serif;
+            backdrop-filter: blur(12px) saturate(1.2);
+            -webkit-backdrop-filter: blur(12px);
             min-width: 180px;
-            box-shadow: 0 4px 18px rgba(0, 60, 140, 0.13);
-            color: #222;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            color: var(--text-muted);
         }
 
         #legend-panel .title {
-            color: #1565c0;
+            color: var(--white);
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             font-size: 13px;
+            letter-spacing: 0.5px;
         }
 
         #legend-panel .road-row {
             display: flex;
             align-items: center;
-            gap: 7px;
-            margin: 4px 0;
+            gap: 8px;
+            margin: 6px 0;
+            color: rgba(220, 235, 255, 0.9);
         }
 
         .road-line {
             width: 22px;
             height: 3px;
-            background: #1565c0;
+            background: var(--blue-brand);
             border-radius: 2px;
         }
 
         .road-count {
-            color: #1565c0;
+            color: var(--blue-accent);
             margin-left: auto;
             font-weight: 600;
         }
 
         .legend-footer {
-            margin-top: 8px;
-            padding-top: 7px;
-            border-top: 1px solid #dde;
-            color: #888;
-            font-size: 10px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(150, 185, 230, 0.5);
+            font-size: 11px;
         }
 
         /* ── Panel de Predicción ── */
         #pred-panel {
             position: fixed;
             top: 0;
-            right: -380px;
-            width: 360px;
+            right: -420px;
+            width: 400px;
             height: 100vh;
-            background: #fff;
-            box-shadow: -4px 0 24px rgba(0, 60, 140, 0.18);
+            background: var(--glass-bg);
+            border-left: 1px solid var(--glass-border);
+            backdrop-filter: blur(24px) saturate(1.4);
+            -webkit-backdrop-filter: blur(24px);
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
             z-index: 2000;
             display: flex;
             flex-direction: column;
-            transition: right 0.35s cubic-bezier(.4, 0, .2, 1);
-            font-family: 'Segoe UI', sans-serif;
+            transition: right 0.4s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         #pred-panel.open {
@@ -242,97 +287,133 @@
         }
 
         #pred-panel-header {
-            background: linear-gradient(135deg, #1a3a5c, #1e5799);
-            color: #fff;
-            padding: 16px 20px;
+            background: rgba(13, 31, 60, 0.6);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 20px 24px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         #pred-panel-header h2 {
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--white);
             flex: 1;
         }
 
         #pred-close {
-            background: none;
-            border: none;
-            color: #adf;
-            font-size: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
             cursor: pointer;
-            padding: 0 4px;
-            line-height: 1;
+            transition: all 0.2s;
         }
 
         #pred-close:hover {
-            color: #fff;
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--white);
         }
 
         #pred-body {
-            padding: 20px;
+            padding: 24px;
             flex: 1;
             overflow-y: auto;
         }
 
         #pred-info {
-            background: #f0f5ff;
-            border: 1px solid #c5d8f5;
-            border-radius: 8px;
-            padding: 10px 14px;
-            margin-bottom: 16px;
+            background: rgba(21, 101, 192, 0.15);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
             font-size: 13px;
-            color: #333;
+            color: rgba(220, 235, 255, 0.9);
+            line-height: 1.5;
         }
 
         #pred-info b {
-            color: #1565c0;
+            color: var(--white);
         }
 
         .pred-label {
+            display: block;
             font-size: 12px;
             font-weight: 600;
-            color: #555;
-            margin: 12px 0 4px;
+            color: rgba(200, 225, 255, 0.80);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            margin: 16px 0 8px;
         }
 
         .pred-input {
             width: 100%;
-            padding: 8px 10px;
-            border: 1.5px solid #c5d8f5;
-            border-radius: 7px;
-            font-size: 13px;
-            color: #222;
+            padding: 12px 14px;
+            background: var(--input-bg);
+            border: 1.5px solid var(--input-border);
+            border-radius: 10px;
+            color: var(--white);
+            font-size: 14px;
+            font-family: inherit;
             outline: none;
-            transition: border 0.2s;
+            transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+        }
+
+        /* Hack to make calendar icon white on dark UI inputs */
+        .pred-input::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.7;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .pred-input::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
         }
 
         .pred-input:focus {
-            border-color: #1565c0;
+            border-color: var(--blue-accent);
+            background: rgba(33, 150, 243, 0.10);
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.18);
         }
 
         #pred-btn {
             width: 100%;
-            margin-top: 18px;
-            padding: 11px;
-            background: #1565c0;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            margin-top: 24px;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--blue-brand) 0%, var(--blue-accent) 100%);
+            color: var(--white);
+            font-size: 15px;
             font-weight: 700;
+            letter-spacing: 0.5px;
+            border: none;
+            border-radius: 10px;
             cursor: pointer;
-            transition: background 0.2s;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.15s, box-shadow 0.25s;
+            box-shadow: 0 6px 22px rgba(21, 101, 192, 0.50);
         }
 
         #pred-btn:hover {
-            background: #0d47a1;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 32px rgba(21, 101, 192, 0.65);
         }
 
         #pred-btn:disabled {
-            background: #90a4ae;
-            cursor: wait;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.4);
+            box-shadow: none;
+            transform: none;
+            cursor: not-allowed;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         #pred-result {
@@ -377,15 +458,17 @@
 <body>
 
     <header>
-        <h1>🚦 MaDrive</h1>
+        <h1>MaDrive</h1>
         <div class="legend">
             <div class="legend-item">
                 <div class="dot dot-green"></div>
                 <span>Cámara analizada</span>
             </div>
             <div class="legend-item">
-                <div class="line-blue"></div>
-                <span>Tramo de carretera con cámaras</span>
+                <div class="line-blue" style="width:12px; background:#1565c0;"></div>
+                <div class="line-blue" style="width:12px; background:#f57c00; margin-left:-3px;"></div>
+                <div class="line-blue" style="width:12px; background:#2e7d32; margin-left:-3px;"></div>
+                <span style="margin-left:4px;">Carreteras (A, M, N)</span>
             </div>
         </div>
         <span>Sistema de Análisis de Tráfico · Madrid</span>
@@ -565,6 +648,16 @@
         map.fitBounds(CAMARAS.map(c => [c.lat, c.lon]), { padding: [40, 40] });
 
         // ─────────────────────────────────────────────
+        // COLORES POR TIPO DE CARRETERA
+        // ─────────────────────────────────────────────
+        function getRoadColor(roadName) {
+            if (roadName.startsWith('A')) return '#1565c0'; // Azul para Autovías (A)
+            if (roadName.startsWith('M')) return '#f57c00'; // Naranja para Madrid (M)
+            if (roadName.startsWith('N')) return '#2e7d32'; // Verde para Nacionales (N)
+            return '#1565c0'; // Default
+        }
+
+        // ─────────────────────────────────────────────
         // LEYENDA FLOTANTE
         // ─────────────────────────────────────────────
         const legendCtrl = L.control({ position: 'bottomright' });
@@ -582,7 +675,7 @@
     <div class="title">🛣️ Carreteras analizadas</div>
     ${roads.map(r => `
       <div class="road-row">
-        <div class="road-line"></div>
+        <div class="road-line" style="background: ${getRoadColor(r)}"></div>
         <span>${r}</span>
         <span class="road-count">${roadGroups[r].length} 📷</span>
       </div>
@@ -605,26 +698,16 @@
         const ROAD_REFS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'A-42', 'M-40', 'M-50', 'M-614', 'N-6'];
 
         const overpassQuery = `
-[out:json][timeout:50];
+[out:json][timeout:25];
 (
-  way["highway"]["ref"="A-1"](${BBOX});
-  way["highway"]["ref"="A-2"](${BBOX});
-  way["highway"]["ref"="A-3"](${BBOX});
-  way["highway"]["ref"="A-4"](${BBOX});
-  way["highway"]["ref"="A-5"](${BBOX});
-  way["highway"]["ref"="A-6"](${BBOX});
-  way["highway"]["ref"="A-42"](${BBOX});
-  way["highway"]["ref"="M-40"](${BBOX});
-  way["highway"]["ref"="M-50"](${BBOX});
-  way["highway"]["ref"="M-614"](${BBOX});
-  way["highway"]["ref"="N-6"](${BBOX});
+  way["highway"]["ref"~"^(A-1|A-2|A-3|A-4|A-5|A-6|A-42|M-40|M-50|M-614|N-6)$"](${BBOX});
 );
-out geom;
+out geom qt;
 `;
 
         const overpassUrl =
             'https://overpass-api.de/api/interpreter?data=' +
-            encodeURIComponent(overpassQuery);
+            encodeURIComponent(overpassQuery.trim());
 
         // Capa de carreteras reales (se añade DEBAJO de los marcadores)
         const roadLayer = L.layerGroup().addTo(map);
@@ -645,11 +728,12 @@ out geom;
                     waysByRef[ref].push(el.geometry.map(p => [p.lat, p.lon]));
                 });
 
-                // Dibujar cada carretera en azul
+                // Dibujar cada carretera en su color respectivo
                 Object.entries(waysByRef).forEach(([ref, segments]) => {
+                    const rColor = getRoadColor(ref);
                     segments.forEach(coords => {
                         L.polyline(coords, {
-                            color: '#1565c0',
+                            color: rColor,
                             weight: 5,
                             opacity: 0.80,
                             smoothFactor: 1.5,
@@ -682,7 +766,7 @@ out geom;
                     if (points.length < 2) return;
                     points.sort((a, b) => a[1] - b[1]);
                     L.polyline(points, {
-                        color: '#1565c0', weight: 5, opacity: 0.75, smoothFactor: 2
+                        color: getRoadColor(road), weight: 5, opacity: 0.75, smoothFactor: 2
                     }).addTo(roadLayer)
                         .bindTooltip(`🛣️ ${road} (aprox.)`, { sticky: true });
                 });
@@ -744,9 +828,51 @@ out geom;
         async function lanzarPrediccion() {
             if (!camaraSeleccionada) return;
 
+            // Extraer y formatear datos de cámara y carretera
             const match = camaraSeleccionada.road.match(/^([A-Za-z]+)-?(\d+)$/);
             const tipo = match ? match[1].toUpperCase() : 'A';
             const num = match ? parseInt(match[2]) : 0;
+
+            const letraA = tipo === 'A' ? 1 : 0;
+            const letraM = tipo === 'M' ? 1 : 0;
+            const letraN = tipo === 'N' ? 1 : 0;
+
+            // Extraer hora y franjas
+            const [horaStr, minStr] = predHora.value.split(':');
+            const horaNum = parseInt(horaStr);
+            const minNum = parseInt(minStr);
+
+            const franjaManana = (horaNum >= 6 && horaNum < 14) ? 1 : 0;
+            const franjaTarde = (horaNum >= 14 && horaNum < 22) ? 1 : 0;
+            const franjaNoche = (horaNum >= 22 || horaNum < 6) ? 1 : 0;
+
+            // Extraer fecha
+            let anio = 2026, mes = 1, dia = 1;
+            if (predFecha.value) {
+                const [y, m, d] = predFecha.value.split('-');
+                anio = parseInt(y);
+                mes = parseInt(m);
+                dia = parseInt(d);
+            }
+
+            // Construir el objeto JSON con las 15 variables requeridas
+            const payload = {
+                id_camara: parseInt(camaraSeleccionada.id),
+                longitud: parseFloat(camaraSeleccionada.lon),
+                latitud: parseFloat(camaraSeleccionada.lat),
+                anio: anio,
+                mes: mes,
+                dia: dia,
+                hora: horaNum,
+                minuto: minNum,
+                carretera_numero: num,
+                carretera_letra_A: letraA,
+                carretera_letra_M: letraM,
+                carretera_letra_N: letraN,
+                franja_horaria_mañana: franjaManana,
+                franja_horaria_noche: franjaNoche,
+                franja_horaria_tarde: franjaTarde
+            };
 
             predBtn.disabled = true;
             predBtn.textContent = '⏳ Calculando…';
@@ -754,21 +880,15 @@ out geom;
             apiWarn.style.display = 'none';
 
             try {
-                const res = await fetch('http://localhost:8000/predecir', {
+                const res = await fetch('/predecir', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        camara: parseInt(camaraSeleccionada.id),
-                        tipo_carretera: tipo,
-                        num_carretera: num,
-                        fecha: predFecha.value,
-                        hora: predHora.value
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await res.json();
 
-                if (data.error) throw new Error(data.error);
+                if (!res.ok || data.error) throw new Error(data.error || 'Error HTTP ' + res.status);
 
 
                 const emojis = ['😴', '🚗', '🚦', '🚨'];

@@ -1,52 +1,44 @@
 import xgboost as xgb
 import joblib
 import pandas as pd
+import os
 
-# Crear objeto modelo
-model = xgb.XGBClassifier()   # o XGBRegressor según tu caso
+# ─── Cargar el modelo y el scaler UNA ÚNICA VEZ al arrancar la API ───
+try:
+    model = xgb.XGBClassifier()
+    model.load_model(os.path.join("ModelosIA", "xgboost_model.json"))
+    scaler = joblib.load(os.path.join("ModelosIA", "scaler.pkl"))
+    cols_scaler = scaler.feature_names_in_
+except Exception as e:
+    print(f"⚠️ Error cargando modelo ML: {e}")
+    model = None
+    scaler = None
 
-# Cargar el modelo
-model.load_model("ModelosIA\\xgboost_model.json")
+def hacer_prediccion(input_data):
+    """
+    Recibe un diccionario con las variables necesarias y devuelve la predicción.
+    """
+    if model is None or scaler is None:
+        raise RuntimeError("El modelo ML no está cargado correctamente.")
 
-scaler = joblib.load("ModelosIA\\scaler.pkl")
+    # Convertir diccionario de entrada a DataFrame de una fila
+    data = pd.DataFrame([input_data])
 
-print(scaler.feature_names_in_)
+    # Normalizar solo las columnas que tocan
+    scaled = scaler.transform(data[cols_scaler])
+    scaled_df = pd.DataFrame(scaled, columns=cols_scaler)
 
-data = pd.DataFrame([{
-    "id_camara": 10,
-    "longitud": 1,
-    "latitud": 1,
-    "anio": 2026,
-    "mes": 3,
-    "dia": 12,
-    "hora": 14,
-    "minuto": 30,
-    "carretera_numero": 1,
-    "carretera_letra_A": 1,
-    "carretera_letra_M": 0,
-    "carretera_letra_N": 0,
-    "franja_horaria_mañana": 0,
-    "franja_horaria_noche": 0,
-    "franja_horaria_tarde": 1
-}])
+    # Columnas que no se normalizan
+    extra = data.drop(columns=cols_scaler)
 
-cols_scaler = scaler.feature_names_in_
+    # Unir todo
+    data_final = pd.concat([scaled_df, extra], axis=1)
 
-# normalizar solo esas
-scaled = scaler.transform(data[cols_scaler])
+    # Asegurar orden correcto de columnas que espera XGBoost
+    data_final = data_final[model.get_booster().feature_names]
 
-scaled_df = pd.DataFrame(scaled, columns=cols_scaler)
-
-# columnas que no se normalizan
-extra = data.drop(columns=cols_scaler)
-
-# unir todo
-data_final = pd.concat([scaled_df, extra], axis=1)
-
-# asegurar orden correcto de columnas
-data_final = data_final[model.get_booster().feature_names]
-
-# predecir
-pred = model.predict(data_final)
-
-print(pred)
+    # Predecir (XGBoost devuelve un array, cogemos el primer elemento)
+    pred_array = model.predict(data_final)
+    
+    # Convertir a entero estándar (puede salir como numpy.int32)
+    return int(pred_array[0])
