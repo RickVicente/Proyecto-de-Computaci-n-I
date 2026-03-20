@@ -64,7 +64,7 @@ ml_path = base_path / "CodigosPython" / "ML_analisis_transformacion"
 sys.path.append(str(ml_path))
 
 try:
-    from predict import hacer_prediccion
+    from CodigosPython.ML_analisis_transformacion.predict import hacer_prediccion
 except ImportError as e:
     print(f"⚠️ Aviso: no se pudo importar predict.py. ({e})")
     hacer_prediccion = None
