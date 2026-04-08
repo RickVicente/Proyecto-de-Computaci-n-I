@@ -1,5 +1,15 @@
 from flask import Flask, request, jsonify, send_file, session, redirect
 import sqlite3
+import pymysql
+
+def get_mysql_connection():
+    return pymysql.connect(
+        host='127.0.0.1',
+        user='root',
+        password='',
+        database='pc2',
+        cursorclass=pymysql.cursors.DictCursor
+    )
 import os
 import requests
 from CodigosPython.ML_analisis_transformacion.analisis_imagen_actual import calcular_nivel_trafico
@@ -231,6 +241,27 @@ def reentrenar():
 
 JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 
+@app.route("/api/zonas", methods=["GET"])
+def get_zonas():
+    try:
+        conn = get_mysql_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT id_zona, latitud, longitud, carretera, pk FROM zonas")
+            rows = cursor.fetchall()
+            zonas = []
+            for row in rows:
+                zonas.append({
+                    "id": str(row['id_zona']),
+                    "lat": float(row['latitud']) if row['latitud'] else 0.0,
+                    "lon": float(row['longitud']) if row['longitud'] else 0.0,
+                    "road": row['carretera'] or "",
+                    "pk": row['pk'] or ""
+                })
+        conn.close()
+        return jsonify({"success": True, "camaras": zonas})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route("/api/camaras_disponibles", methods=["GET"])
 def camaras_disponibles():
     try:
@@ -249,15 +280,15 @@ def camaras_disponibles():
     
 @app.route("/api/camaras_activas", methods=["GET"])
 def camaras_activas():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT id_zona FROM zona")
-    ids = [str(row[0]) for row in cursor.fetchall()]
-
-    conn.close()
-
-    return jsonify({"ids": ids})
+    try:
+        conn = get_mysql_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT id_zona FROM zonas")
+            ids = [str(row['id_zona']) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify({"ids": ids})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/add_camara", methods=["POST"])
 def add_camara():
@@ -279,15 +310,15 @@ def add_camara():
 
         lat = float(cam["latitud"])
         lon = float(cam["longitud"])
+        carretera = cam.get("carretera", "")
+        pk = str(cam.get("pk", ""))
 
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO zona (id_zona, nombre, latitud, longitud, descripcion)
-            VALUES (?, ?, ?, ?, ?)
-        """, (cam_id, nombre, lat, lon, descripcion))
-
+        conn = get_mysql_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT IGNORE INTO zonas (id_zona, latitud, longitud, carretera, pk, descripcion)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (cam_id, lat, lon, carretera, pk, descripcion))
         conn.commit()
         conn.close()
 

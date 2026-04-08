@@ -537,54 +537,9 @@
         // ─────────────────────────────────────────────
         // DATOS DE CÁMARAS (coordenadas reales DGT)
         // ─────────────────────────────────────────────
-        const CAMARAS = [
-            { id: "598", lat: 40.521565, lon: -3.651408, road: "A-1", pk: "14.3" },
-            { id: "634", lat: 40.449394, lon: -3.648114, road: "A-2", pk: "5.5" },
-            { id: "651", lat: 40.48071565, lon: -3.64387716, road: "M-40", pk: "3.6" },
-            { id: "660", lat: 40.450333, lon: -3.600132, road: "A-2", pk: "9.6" },
-            { id: "668", lat: 40.467689, lon: -3.439709, road: "A-2", pk: "23.6" },
-            { id: "673", lat: 40.512491, lon: -3.319302, road: "A-2", pk: "35.4" },
-            { id: "677", lat: 40.47255345, lon: -3.4182232, road: "A-2", pk: "37.0" },
-            { id: "696", lat: 40.385469, lon: -3.605334, road: "A-3", pk: "8.0" },
-            { id: "705", lat: 40.324762, lon: -3.518185, road: "A-3", pk: "12.0" },
-            { id: "726", lat: 40.22625, lon: -3.335008, road: "A-3", pk: "18.5" },
-            { id: "731", lat: 40.34245796, lon: -3.6724584, road: "A-4", pk: "24.0" },
-            { id: "771", lat: 40.272637, lon: -3.753096, road: "A-42", pk: "8.5" },
-            { id: "773", lat: 40.295655, lon: -3.737384, road: "A-42", pk: "10.5" },
-            { id: "791", lat: 40.38056, lon: -3.789599, road: "A-5", pk: "18.0" },
-            { id: "798", lat: 40.403421, lon: -3.755843, road: "A-5", pk: "22.0" },
-            { id: "799", lat: 40.355104, lon: -3.830628, road: "A-5", pk: "22.5" },
-            { id: "826", lat: 40.45863519, lon: -3.81353934, road: "M-40", pk: "7.0" },
-            { id: "864", lat: 40.453448, lon: -3.743117, road: "A-6", pk: "14.0" },
-            { id: "866", lat: 40.434934, lon: -3.719181, road: "A-6", pk: "17.0" },
-            { id: "868", lat: 40.474835, lon: -3.842002, road: "A-6", pk: "18.5" },
-            { id: "872", lat: 40.47449, lon: -3.830373, road: "A-6", pk: "21.0" },
-            { id: "873", lat: 40.479767, lon: -3.848654, road: "A-6", pk: "22.0" },
-            { id: "877", lat: 40.447902, lon: -3.735774, road: "A-6", pk: "25.0" },
-            { id: "897", lat: 40.62242, lon: -3.989542, road: "A-6", pk: "5.0" },
-            { id: "926", lat: 40.364805, lon: -3.694902, road: "M-40", pk: "3.0" },
-            { id: "967", lat: 40.305685, lon: -3.783268, road: "M-50", pk: "8.0" },
-            { id: "971", lat: 40.306916, lon: -3.653899, road: "M-50", pk: "5.5" },
-            { id: "972", lat: 40.292268, lon: -3.675109, road: "M-50", pk: "4.5" },
-            { id: "1004", lat: 40.507339, lon: -3.709791, road: "M-40", pk: "40.0" },
-            { id: "1010", lat: 40.49159171, lon: -3.73758792, road: "M-40", pk: "6.0" },
-            { id: "1097", lat: 40.539252, lon: -3.280735, road: "A-2", pk: "40.0" },
-            { id: "1125", lat: 40.408305, lon: -3.743097, road: "A-5", pk: "28.0" },
-            { id: "1158", lat: 40.458679, lon: -3.747663, road: "A-6", pk: "20.0" },
-            { id: "1160", lat: 40.459675, lon: -3.750613, road: "A-6", pk: "22.0" },
-            { id: "1161", lat: 40.482471, lon: -3.855815, road: "A-6", pk: "22.5" },
-            { id: "1162", lat: 40.508183, lon: -3.878167, road: "A-6", pk: "23.0" },
-            { id: "1676", lat: 40.257709, lon: -3.69004, road: "A-4", pk: "12.0" },
-            { id: "1690", lat: 40.01423, lon: -3.632394, road: "A-4", pk: "11.0" },
-            { id: "169372", lat: 40.3494611, lon: -3.7230111, road: "A-42", pk: "6.5" },
-            { id: "169708", lat: 40.7332886, lon: -4.0240026, road: "M-614", pk: "28.0" },
-            { id: "169709", lat: 40.7315, lon: -4.03265, road: "M-614", pk: "28.5" },
-            { id: "169741", lat: 40.447128, lon: -3.734508, road: "A-6", pk: "30.0" },
-            { id: "174942", lat: 40.467225, lon: -3.812601, road: "A-6", pk: "4.0" },
-            { id: "174943", lat: 40.475545, lon: -3.838841, road: "A-6", pk: "4.5" },
-            { id: "174945", lat: 40.4929994, lon: -3.8681254, road: "A-6", pk: "5.0" },
-            { id: "175471", lat: 40.665909, lon: -4.0794891, road: "N-6", pk: "7.5" },
-        ];
+        const CAMARAS_DATA = [];
+        let CAMARAS = [];
+
 
         // ─────────────────────────────────────────────
         // MAPA — fondo blanco (OSM estándar claro)
@@ -623,16 +578,22 @@
         const roadGroups = {};
         const traficoCache = {};
 
-        CAMARAS.forEach(cam => {
-            roadsSet.add(cam.road);
-            if (!roadGroups[cam.road]) roadGroups[cam.road] = [];
-            roadGroups[cam.road].push([cam.lat, cam.lon]);
+        fetch('/api/zonas')
+            .then(res => res.json())
+            .then(data => {
+                if(data.success && data.camaras) {
+                    CAMARAS = data.camaras;
 
-            const imgUrl = `https://infocar.dgt.es/etraffic/data/camaras/${cam.id}.jpg`;
+                    CAMARAS.forEach(cam => {
+                        roadsSet.add(cam.road);
+                        if (!roadGroups[cam.road]) roadGroups[cam.road] = [];
+                        roadGroups[cam.road].push([cam.lat, cam.lon]);
 
-            const marker = L.marker([cam.lat, cam.lon], { icon: makeIcon() })
-                .addTo(map)
-                .bindPopup(`
+                        const imgUrl = `https://infocar.dgt.es/etraffic/data/camaras/${cam.id}.jpg`;
+
+                        const marker = L.marker([cam.lat, cam.lon], { icon: makeIcon() })
+                            .addTo(map)
+                            .bindPopup(`
       <div class="custom-popup">
         <h3>📷 Cámara ${cam.id}</h3>
         <p>🛣️ <strong>Carretera:</strong> ${cam.road}</p>
@@ -651,43 +612,52 @@
         </button>
       </div>
     `, { maxWidth: 265 });
-            marker.on("popupopen", () => {
-                const imgUrl = `https://infocar.dgt.es/etraffic/data/camaras/${cam.id}.jpg`;
+                        marker.on("popupopen", () => {
+                            const imgUrl = `https://infocar.dgt.es/etraffic/data/camaras/${cam.id}.jpg`;
 
-                fetch("/analizar_imagen", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ url: imgUrl })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    console.log("DATA:", data);
+                            fetch("/analizar_imagen", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
+                                body: JSON.stringify({ url: imgUrl })
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                console.log("DATA:", data);
 
-                    if (data.error) {
-                        console.error("Error backend:", data.error);
-                        return;
+                                if (data.error) {
+                                    console.error("Error backend:", data.error);
+                                    return;
+                                }
+
+                                // 🔥 GUARDAR SIEMPRE
+                                traficoCache[cam.id] = data;
+
+                                // 🔥 ACTUALIZAR PANEL SI ESTÁ ABIERTO
+                                if (camaraSeleccionada && camaraSeleccionada.id === cam.id) {
+                                    abrirPanel(cam);
+                                }
+                            })
+                            .catch(err => {
+                                if (typeof el !== 'undefined' && el) el.innerText = "⚠️ Error conexión";
+                            });
+                        });
+                    });
+
+                    document.getElementById('total-cams').textContent = CAMARAS.length;
+                    document.getElementById('total-roads').textContent = roadsSet.size;
+
+                    map.fitBounds(CAMARAS.map(c => [c.lat, c.lon]), { padding: [40, 40] });
+                    const legendPanelDiv = document.getElementById('legend-panel');
+                    if (legendPanelDiv) {
+                        try {
+                            renderLegend(legendPanelDiv, 'Cámaras BD cargadas');
+                        } catch(e) {}
                     }
-
-                    // 🔥 GUARDAR SIEMPRE
-                    traficoCache[cam.id] = data;
-
-                    // 🔥 ACTUALIZAR PANEL SI ESTÁ ABIERTO
-                    if (camaraSeleccionada && camaraSeleccionada.id === cam.id) {
-                        abrirPanel(cam);
-                    }
-                })
-                .catch(err => {
-                    if (el) el.innerText = "⚠️ Error conexión";
-                });
-            });
-        });
-
-        document.getElementById('total-cams').textContent = CAMARAS.length;
-        document.getElementById('total-roads').textContent = roadsSet.size;
-
-        map.fitBounds(CAMARAS.map(c => [c.lat, c.lon]), { padding: [40, 40] });
+                }
+            })
+            .catch(err => console.error("Error cargando cámaras:", err));
 
         // ─────────────────────────────────────────────
         // COLORES POR TIPO DE CARRETERA
