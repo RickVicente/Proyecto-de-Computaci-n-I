@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, send_file, session, redirect
 import sqlite3
 import os
+import requests
+from CodigosPython.ML_analisis_transformacion.analisis_imagen_actual import calcular_nivel_trafico
 
 app = Flask(__name__)
 # 🔐 CLAVE SECRETA OBLIGATORIA para encriptar las cookies de sesión (pon lo que quieras)
@@ -65,6 +67,7 @@ sys.path.append(str(ml_path))
 
 try:
     from CodigosPython.ML_analisis_transformacion.predict import hacer_prediccion
+    from CodigosPython.ML_analisis_transformacion.analisis_imagen_actual import calcular_nivel_trafico
 except ImportError as e:
     print(f"⚠️ Aviso: no se pudo importar predict.py. ({e})")
     hacer_prediccion = None
@@ -128,6 +131,170 @@ def predecir():
     except Exception as e:
         print(f"Error prediciendo: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/analizar_imagen", methods=["POST"])
+def analizar_imagen():
+    data = request.json
+    img_url = data.get("url")
+
+    if not img_url:
+        return jsonify({"error": "No se proporcionó URL"}), 400
+
+    temp_path = "temp.jpg"
+
+    try:
+        # Descargar imagen desde la DGT
+        img_data = requests.get(img_url).content
+        with open(temp_path, 'wb') as f:
+            f.write(img_data)
+
+        # 🔥 TU MODELO
+        nivel, area_ratio = calcular_nivel_trafico(temp_path)
+
+        if nivel == 0:
+            desc = "Tráfico Fluido"
+            color = "#22cc44"
+        elif nivel == 1:
+            desc = "Tráfico Denso"
+            color = "#ffc107"
+        elif nivel == 2:
+            desc = "Atasco"
+            color = "#f57c00"
+        else:
+            desc = "Muy Congestionado"
+            color = "#d32f2f"
+
+        return jsonify({
+            "nivel": nivel,
+            "descripcion": desc,
+            "color": color,
+            "ocupacion": float(area_ratio)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+try:
+    from CodigosPython.ML_analisis_transformacion.descargar_imagenes import ejecutar_descarga
+    from CodigosPython.ML_analisis_transformacion.transformacion_dataset import normalizar_dataset
+except ImportError as e:
+    print(f"⚠️ Aviso: no se pudo importar descargar_imagenes.py. ({e})")
+    ejecutar_descarga = None
+    normalizar_dataset = None
+
+@app.route("/descargar_dataset", methods=["POST"])
+def descargar_dataset():
+    if "user_id" not in session:
+        return jsonify({"error": "No autorizado"}), 401
+
+    try:
+        ejecutar_descarga()
+        normalizar_dataset()
+
+        return jsonify({
+            "success": True,
+            "message": "Dataset actualizado correctamente"
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+DATASET_CSV = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/2. datasetNormalizado.csv"
+
+@app.route("/reentrenar", methods=["POST"])
+def reentrenar():
+    try:
+        import pandas as pd
+        import xgboost as xgb
+
+        df = pd.read_csv(DATASET_CSV)
+
+        X = df.drop(columns=["id_entrada", "nivel_ocupacion"])
+        y = df["nivel_ocupacion"]
+
+        model = xgb.XGBClassifier()
+        model.fit(X, y)
+
+        model.save_model("xgboost_model.json")
+
+        return jsonify({"success": True, "message": "Modelo reentrenado"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
+
+@app.route("/api/camaras_disponibles", methods=["GET"])
+def camaras_disponibles():
+    try:
+        r = requests.get(JSON_URL, timeout=10)
+        data = r.json()
+
+        camaras = data.get("camaras", [])
+
+        return jsonify({
+            "success": True,
+            "camaras": camaras
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/api/camaras_activas", methods=["GET"])
+def camaras_activas():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id_zona FROM zona")
+    ids = [str(row[0]) for row in cursor.fetchall()]
+
+    conn.close()
+
+    return jsonify({"ids": ids})
+
+@app.route("/api/add_camara", methods=["POST"])
+def add_camara():
+    data = request.json
+
+    cam_id = data.get("id")
+    nombre = data.get("nombre", f"Camara {cam_id}")
+    descripcion = data.get("descripcion", "")
+
+    try:
+        # 🔍 Buscar en JSON DGT
+        r = requests.get(JSON_URL)
+        camaras = r.json().get("camaras", [])
+
+        cam = next((c for c in camaras if str(c["id"]) == str(cam_id)), None)
+
+        if not cam:
+            return jsonify({"error": "Cámara no encontrada en DGT"}), 404
+
+        lat = float(cam["latitud"])
+        lon = float(cam["longitud"])
+
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO zona (id_zona, nombre, latitud, longitud, descripcion)
+            VALUES (?, ?, ?, ?, ?)
+        """, (cam_id, nombre, lat, lon, descripcion))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True, "message": "Cámara añadida"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # Arranca Flask en el puerto 5000 (Ojo: tendrás que cambiar el puerto en mapa.html si el puerto cambió de 8000 a 5000)

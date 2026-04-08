@@ -199,20 +199,19 @@ def procesar_camara(cam_id, url, cam_data, id_entrada):
     except Exception as e:
         print(f"Error cámara {cam_id}:", e)
 
-def main():
-    print("Descarga + detección + ocupación automática\n")
+def ejecutar_descarga():
+    print("Ejecutando descarga manual...\n")
+
     id_entrada = obtener_siguiente_id(DATASET_CSV)
+    cam_data = cargar_json()
 
-    while True:
-        cam_data = cargar_json()
+    for cam_id, url in CAMERAS.items():
+        procesar_camara(cam_id, url, cam_data, id_entrada)
+        id_entrada += 1
 
-        for cam_id, url in CAMERAS.items():
-            procesar_camara(cam_id, url, cam_data, id_entrada)
-            id_entrada += 1
+    print("Descarga finalizada\n")
 
-        print("Esperando siguiente ciclo...\n")
-        time.sleep(INTERVALO)
-
-
+'''
 if __name__ == "__main__":
     main()
+'''

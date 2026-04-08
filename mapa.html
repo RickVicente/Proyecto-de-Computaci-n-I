@@ -500,6 +500,16 @@
                 📷 Selecciona una cámara en el mapa para predecir
             </div>
 
+            <div id="pred-traffic" style="
+                margin-top:12px;
+                padding:12px;
+                border-radius:10px;
+                background:#f5f7fa;
+                text-align:center;
+                font-weight:700;
+                font-size:18px;
+            "></div>
+
             <div class="pred-label">📅 Fecha</div>
             <input type="date" class="pred-input" id="pred-fecha" />
 
@@ -611,6 +621,7 @@
         // ─────────────────────────────────────────────
         const roadsSet = new Set();
         const roadGroups = {};
+        const traficoCache = {};
 
         CAMARAS.forEach(cam => {
             roadsSet.add(cam.road);
@@ -640,6 +651,37 @@
         </button>
       </div>
     `, { maxWidth: 265 });
+            marker.on("popupopen", () => {
+                const imgUrl = `https://infocar.dgt.es/etraffic/data/camaras/${cam.id}.jpg`;
+
+                fetch("/analizar_imagen", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ url: imgUrl })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    console.log("DATA:", data);
+
+                    if (data.error) {
+                        console.error("Error backend:", data.error);
+                        return;
+                    }
+
+                    // 🔥 GUARDAR SIEMPRE
+                    traficoCache[cam.id] = data;
+
+                    // 🔥 ACTUALIZAR PANEL SI ESTÁ ABIERTO
+                    if (camaraSeleccionada && camaraSeleccionada.id === cam.id) {
+                        abrirPanel(cam);
+                    }
+                })
+                .catch(err => {
+                    if (el) el.innerText = "⚠️ Error conexión";
+                });
+            });
         });
 
         document.getElementById('total-cams').textContent = CAMARAS.length;
@@ -811,11 +853,30 @@ out geom qt;
             const match = cam.road.match(/^([A-Za-z]+)-?(\d+)$/);
             const tipo = match ? match[1].toUpperCase() : 'A';
             const num = match ? parseInt(match[2]) : 0;
+            const trafico = traficoCache[cam.id];
+
+            let traficoHTML = "No calculado aún";
+
+            if (trafico) {
+                traficoHTML = `<span style="color:${trafico.color}">
+                    ${trafico.descripcion}
+                </span>`;
+            }
 
             predInfo.innerHTML = `
                 <b>📷 Cámara ${cam.id}</b><br/>
                 🛣️ Carretera: <b>${cam.road}</b><br/>
                 📍 PK: ${cam.pk} km<br/>
+                🚦 Tráfico actual:<br/>
+                <div style="
+                    font-size:22px;
+                    font-weight:800;
+                    margin-top:4px;
+                    margin-bottom:6px;
+                    text-align:center;
+                ">
+                    ${traficoHTML}
+                </div>
                 <small style="color:#888;">Tipo: ${tipo} · Número: ${num}</small>
             `;
             predBtn.disabled = false;

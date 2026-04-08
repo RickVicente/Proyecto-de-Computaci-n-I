@@ -33,14 +33,10 @@ def nivel_ocupacion_por_area(area_ratio):
     else:
         return 3
 
-img_path = "imagen.jpg"
+def calcular_nivel_trafico(img_path):
+    result = model(img_path)[0]
 
-result = model(img_path)[0]
+    area_ratio = calcular_ocupacion_visual(result)
+    nivel = nivel_ocupacion_por_area(area_ratio)
 
-area_ratio = calcular_ocupacion_visual(result)
-nivel = nivel_ocupacion_por_area(area_ratio)
-
-print("Ocupación visual:", area_ratio)
-print("Nivel ocupación:", nivel)
-
-result.show()
+    return nivel, area_ratio
