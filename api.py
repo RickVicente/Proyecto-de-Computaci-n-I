@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_file, session, redirect
 import sqlite3
 import pymysql
+import mysql.connector
 
 def get_mysql_connection():
     return pymysql.connect(
@@ -10,6 +11,7 @@ def get_mysql_connection():
         database='pc2',
         cursorclass=pymysql.cursors.DictCursor
     )
+
 import os
 import requests
 from CodigosPython.ML_analisis_transformacion.analisis_imagen_actual import calcular_nivel_trafico
@@ -44,7 +46,16 @@ def mapa():
         return send_file("mio.html")
     return "Error: No se encuentra mapa.html ni mio.html", 404
 
-# ─── ENDPOINT DE LOGIN (Hardcodeado temporalmente) ────────────
+@app.route("/adminView")
+def admin_view():
+    if "user_id" not in session:
+        return redirect("/")
+
+    if session.get("rol") != "admin":
+        return "Acceso no autorizado", 403
+
+    return send_file("adminView.html")
+
 @app.route("/api/login", methods=["POST"])
 def login():
     datos = request.json
@@ -54,15 +65,49 @@ def login():
     if not email or not password:
         return jsonify({"success": False, "message": "Faltan datos."}), 400
 
-    # 🛑 LOGIN HARCODEADO 🛑 (Sustituye a SQLite temporalmente)
-    if email == "admin@madrive.es" and password == "123456":
-        # ✅ GUARDAR LA SESIÓN DEL USUARIO (ID inventado 1)
-        session["user_id"] = 1 
-        
-        return jsonify({"success": True, "message": "Login correcto.", "redirect": "/mapa"})
-    else:
-        # Credenciales erróneas
-        return jsonify({"success": False, "message": "Usuario o contraseña incorrectos."}), 401
+    # 🔎 Conexión a MySQL
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="tu_usuario",
+        password="tu_password",
+        database="tu_base_de_datos"
+    )
+
+    cursor = conn.cursor(dictionary=True)
+
+    # Buscar usuario
+    cursor.execute(
+        "SELECT id, password, rol FROM usuarios WHERE email = %s",
+        (email,)
+    )
+    user = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    # 🛑 Verificar credenciales
+    if user and user["password"] == password:  # ⚠️ luego usa hash
+        session["user_id"] = user["id"]
+        session["rol"] = user["rol"]  # ← aquí guardas el ENUM directamente
+
+        # 🔀 Redirección según rol
+        if user["rol"] == "admin":
+            return jsonify({
+                "success": True,
+                "message": "Login correcto.",
+                "redirect": "/adminView"
+            })
+        else:
+            return jsonify({
+                "success": True,
+                "message": "Login correcto.",
+                "redirect": "/mapa"
+            })
+
+    return jsonify({
+        "success": False,
+        "message": "Usuario o contraseña incorrectos."
+    }), 401
 
 # ─── ENDPOINT DE IA (Predicción real) ────────────────────────────
 
@@ -82,6 +127,33 @@ except ImportError as e:
     print(f"⚠️ Aviso: no se pudo importar predict.py. ({e})")
     hacer_prediccion = None
 
+def guardar_prediccion(input_model, nivel, desc, color):
+    conn = get_mysql_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+                INSERT INTO predicciones (
+                    usuario_id, zona_id, fehca_hora_prediccion, valor_ocupacion, fecha_calculo
+                ) VALUES (%s, %s, %s, %s, %s)
+            """
+
+            fecha = f"{input_model['anio']}-{input_model['mes']:02d}-{input_model['dia']:02d}"
+            hora = f"{input_model['hora']:02d}:{input_model['minuto']:02d}:00"
+
+            valores = (
+                input_model["id_camara"],
+                fecha,
+                hora,
+                nivel
+            )
+
+            cursor.execute(sql, valores)
+
+        conn.commit()
+
+    finally:
+        conn.close()
 
 @app.route("/predecir", methods=["POST"])
 def predecir():
@@ -126,6 +198,11 @@ def predecir():
         else: # nivel 3
             desc = "Tráfico Muy Congestionado"
             color = "#d32f2f"  # Rojo
+
+        try:
+            guardar_prediccion(input_model, nivel, desc, color)
+        except Exception as e:
+            print("Error guardando:", e)
 
         return jsonify({
             "success": True,
