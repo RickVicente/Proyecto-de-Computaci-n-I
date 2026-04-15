@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_file, session, redirect
-import sqlite3
-import pymysql
 import mysql.connector
+import traceback
 
 def get_mysql_connection():
     return mysql.connector.connect(
@@ -316,21 +315,31 @@ JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 def get_zonas():
     try:
         conn = get_mysql_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT id_zona, latitud, longitud, carretera, pk FROM zonas")
-            rows = cursor.fetchall()
-            zonas = []
-            for row in rows:
-                zonas.append({
-                    "id": str(row['id_zona']),
-                    "lat": float(row['latitud']) if row['latitud'] else 0.0,
-                    "lon": float(row['longitud']) if row['longitud'] else 0.0,
-                    "road": row['carretera'] or "",
-                    "pk": row['pk'] or ""
-                })
+        cursor = conn.cursor(dictionary=True)  # 👈 IMPORTANTE
+
+        cursor.execute("SELECT id_zona, latitud, longitud, carretera, pk FROM zonas")
+        rows = cursor.fetchall()
+
+        zonas = []
+        for row in rows:
+            zonas.append({
+                "id": str(row['id_zona']),
+                "lat": float(row['latitud']) if row['latitud'] else 0.0,
+                "lon": float(row['longitud']) if row['longitud'] else 0.0,
+                "road": row['carretera'] or "",
+                "pk": row['pk'] or ""
+            })
+
+        cursor.close()
         conn.close()
+
         return jsonify({"success": True, "camaras": zonas})
+
     except Exception as e:
+        import traceback
+        print("❌ ERROR EN /api/zonas")
+        traceback.print_exc()
+
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/camaras_disponibles", methods=["GET"])
