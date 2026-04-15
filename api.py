@@ -4,13 +4,13 @@ import pymysql
 import mysql.connector
 
 def get_mysql_connection():
-    return pymysql.connect(
-        host='127.0.0.1',
-        user='root',
-        password='',
-        database='pc2',
-        cursorclass=pymysql.cursors.DictCursor
-    )
+    return mysql.connector.connect(
+    host="127.0.0.1",
+    user="root",
+    password="",
+    database="pc2",
+    port=3306
+)
 
 import os
 import requests
@@ -51,10 +51,9 @@ def admin_view():
     if "user_id" not in session:
         return redirect("/")
 
-    if session.get("rol") != "admin":
-        return "Acceso no autorizado", 403
-
-    return send_file("adminView.html")
+    if os.path.exists("adminView.html"):
+        return send_file("adminView.html")
+    return "Error: No se encuentra adminView.html ni mio.html", 404
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -66,12 +65,7 @@ def login():
         return jsonify({"success": False, "message": "Faltan datos."}), 400
 
     # 🔎 Conexión a MySQL
-    conn = mysql.connector.connect(
-        host="localhost",
-        user="tu_usuario",
-        password="tu_password",
-        database="tu_base_de_datos"
-    )
+    conn = get_mysql_connection()
 
     cursor = conn.cursor(dictionary=True)
 
