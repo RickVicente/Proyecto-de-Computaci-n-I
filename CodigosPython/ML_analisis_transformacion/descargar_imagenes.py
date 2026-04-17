@@ -63,39 +63,15 @@ JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 
 INTERVALO = 17.5 * 60
 
-BASE_FOLDER = Path("C:/Users/ricky/OneDrive/Escritorio/Nuevas_Camaras_Madrid_Filtradas")
+# Rutas relativas al proyecto (compatibles con cualquier máquina)
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent  # raíz del proyecto
 
-DATASET_CSV = Path(
-    "C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/1. datasetCompleto.csv"
-)
+BASE_FOLDER = _BASE_DIR / "datasets" / "imagenes_camaras"
 
-MODEL = YOLO("yolov8x-seg.pt")
-MODEL.conf = 0.25
+DATASET_CSV = _BASE_DIR / "datasets" / "1. datasetCompleto.csv"
 
 CLASSES = ["car", "truck", "bus", "bike"]
 
-for cam_id in CAMERAS:
-    (BASE_FOLDER / cam_id).mkdir(parents=True, exist_ok=True)
-
-if not DATASET_CSV.exists():
-    with open(DATASET_CSV, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            "id_entrada",
-            "id_camara",
-            "carretera",
-            "latitud",
-            "longitud",
-            "fecha_descarga",
-            "hora_descarga",
-            "url_camara",
-            "cars",
-            "trucks",
-            "buses",
-            "bikes",
-            "total",
-            "nivel_ocupacion"
-        ])
 
 def obtener_siguiente_id(dataset_csv):
     if not dataset_csv.exists():
@@ -146,7 +122,7 @@ def nivel_ocupacion(area):
         return 3
 
 
-def procesar_camara(cam_id, url, cam_data, id_entrada):
+def procesar_camara_con_modelo(cam_id, url, cam_data, id_entrada, model):
     try:
         meta = cam_data.get(cam_id, {})
         carretera = meta.get("carretera", "")
@@ -164,7 +140,7 @@ def procesar_camara(cam_id, url, cam_data, id_entrada):
         with open(img_path, "wb") as f:
             f.write(img)
 
-        result = MODEL(str(img_path))[0]
+        result = model(str(img_path))[0]
 
         counts = {c: 0 for c in CLASSES}
         for box in result.boxes:
@@ -202,11 +178,29 @@ def procesar_camara(cam_id, url, cam_data, id_entrada):
 def ejecutar_descarga():
     print("Ejecutando descarga manual...\n")
 
+    # Crear carpetas y cargar modelo aquí (no al importar)
+    BASE_FOLDER.mkdir(parents=True, exist_ok=True)
+    for cam_id in CAMERAS:
+        (BASE_FOLDER / cam_id).mkdir(parents=True, exist_ok=True)
+
+    if not DATASET_CSV.exists():
+        DATASET_CSV.parent.mkdir(parents=True, exist_ok=True)
+        with open(DATASET_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "id_entrada", "id_camara", "carretera", "latitud", "longitud",
+                "fecha_descarga", "hora_descarga", "url_camara",
+                "cars", "trucks", "buses", "bikes", "total", "nivel_ocupacion"
+            ])
+
+    model = YOLO("yolov8x-seg.pt")
+    model.conf = 0.25
+
     id_entrada = obtener_siguiente_id(DATASET_CSV)
-    cam_data = cargar_json()
+    cam_data   = cargar_json()
 
     for cam_id, url in CAMERAS.items():
-        procesar_camara(cam_id, url, cam_data, id_entrada)
+        procesar_camara_con_modelo(cam_id, url, cam_data, id_entrada, model)
         id_entrada += 1
 
     print("Descarga finalizada\n")

@@ -9,3 +9,4 @@ xgboost
 flask
 uvicorn fastapi
 pymysql
+mysql-connector-python

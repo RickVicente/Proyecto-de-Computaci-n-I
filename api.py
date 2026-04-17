@@ -286,7 +286,9 @@ def descargar_dataset():
             "error": str(e)
         }), 500
 
-DATASET_CSV = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/2. datasetNormalizado.csv"
+from pathlib import Path
+_BASE_DIR = Path(__file__).resolve().parent
+DATASET_CSV = _BASE_DIR / "datasets" / "2. datasetNormalizado.csv"
 
 @app.route("/reentrenar", methods=["POST"])
 def reentrenar():
@@ -406,6 +408,83 @@ def add_camara():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/logs_predicciones", methods=["GET"])
+def logs_predicciones():
+    if "user_id" not in session:
+        return jsonify({"error": "No autorizado"}), 401
+
+    try:
+        conn = get_mysql_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Paginación opcional ?page=1&limit=50
+        page  = max(1, int(request.args.get("page",  1)))
+        limit = max(1, min(200, int(request.args.get("limit", 50))))
+        offset = (page - 1) * limit
+
+        # Total de registros
+        cursor.execute("SELECT COUNT(*) AS total FROM predicciones")
+        total = cursor.fetchone()["total"]
+
+        # Filas con datos legibles
+        cursor.execute("""
+            SELECT
+                p.id,
+                p.fecha_hora_prediccion,
+                p.valor_ocupacion,
+                p.fecha_calculo,
+                u.username  AS usuario,
+                z.carretera AS carretera,
+                z.pk        AS pk
+            FROM predicciones p
+            LEFT JOIN usuarios u ON u.id       = p.usuario_id
+            LEFT JOIN zonas    z ON z.id_zona  = p.zona_id
+            ORDER BY p.fecha_calculo DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        rows = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # Convertir valores de ocupación numéricos a texto legible
+        nivel_map = {
+            0: {"texto": "Tráfico Fluido",          "color": "#22cc44"},
+            1: {"texto": "Tráfico Denso",            "color": "#ffc107"},
+            2: {"texto": "Atasco",                   "color": "#f57c00"},
+            3: {"texto": "Muy Congestionado",        "color": "#d32f2f"},
+        }
+
+        logs = []
+        for r in rows:
+            nivel = r.get("valor_ocupacion")
+            info  = nivel_map.get(nivel, {"texto": "—", "color": "#888"})
+            logs.append({
+                "id":                    r["id"],
+                "fecha_hora_prediccion": str(r["fecha_hora_prediccion"]) if r["fecha_hora_prediccion"] else "—",
+                "fecha_calculo":         str(r["fecha_calculo"])         if r["fecha_calculo"]         else "—",
+                "nivel":                 nivel,
+                "descripcion":           info["texto"],
+                "color":                 info["color"],
+                "usuario":               r["usuario"]   or "—",
+                "carretera":             r["carretera"] or "—",
+                "pk":                    r["pk"]        or "—",
+            })
+
+        return jsonify({"success": True, "total": total, "page": page, "limit": limit, "logs": logs})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"success": True})
+
 
 if __name__ == '__main__':
     # Arranca Flask en el puerto 5000 (Ojo: tendrás que cambiar el puerto en mapa.html si el puerto cambió de 8000 a 5000)
