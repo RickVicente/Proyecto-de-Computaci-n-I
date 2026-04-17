@@ -286,7 +286,7 @@ def descargar_dataset():
             "error": str(e)
         }), 500
 
-DATASET_CSV = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/2. datasetNormalizado.csv"
+DATASET_CSV = r"CodigosPython\datasets\1. datasetCompleto.csv"
 
 @app.route("/reentrenar", methods=["POST"])
 def reentrenar():
