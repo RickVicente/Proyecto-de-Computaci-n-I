@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_file, session, redirect
 import mysql.connector
 import traceback
+from datetime import datetime
 
 def get_mysql_connection():
     return mysql.connector.connect(
@@ -120,32 +121,41 @@ except ImportError as e:
     print(f"⚠️ Aviso: no se pudo importar predict.py. ({e})")
     hacer_prediccion = None
 
-def guardar_prediccion(input_model, nivel, desc, color):
+def guardar_prediccion(input_model, nivel):
+    usuario_id = session.get("user_id")
+    if usuario_id is None:
+        raise RuntimeError("No hay un usuario autenticado para guardar la predicción.")
+
+    fecha_hora_prediccion = datetime(
+        input_model["anio"],
+        input_model["mes"],
+        input_model["dia"],
+        input_model["hora"],
+        input_model["minuto"]
+    )
+
     conn = get_mysql_connection()
+    cursor = conn.cursor()
 
     try:
-        with conn.cursor() as cursor:
-            sql = """
-                INSERT INTO predicciones (
-                    usuario_id, zona_id, fehca_hora_prediccion, valor_ocupacion, fecha_calculo
-                ) VALUES (%s, %s, %s, %s, %s)
-            """
+        sql = """
+            INSERT INTO predicciones (
+                usuario_id, zona_id, fecha_hora_prediccion, valor_ocupacion
+            ) VALUES (%s, %s, %s, %s)
+        """
 
-            fecha = f"{input_model['anio']}-{input_model['mes']:02d}-{input_model['dia']:02d}"
-            hora = f"{input_model['hora']:02d}:{input_model['minuto']:02d}:00"
+        valores = (
+            usuario_id,
+            input_model["id_camara"],
+            fecha_hora_prediccion,
+            nivel
+        )
 
-            valores = (
-                input_model["id_camara"],
-                fecha,
-                hora,
-                nivel
-            )
-
-            cursor.execute(sql, valores)
-
+        cursor.execute(sql, valores)
         conn.commit()
 
     finally:
+        cursor.close()
         conn.close()
 
 @app.route("/predecir", methods=["POST"])
@@ -193,7 +203,7 @@ def predecir():
             color = "#d32f2f"  # Rojo
 
         try:
-            guardar_prediccion(input_model, nivel, desc, color)
+            guardar_prediccion(input_model, nivel)
         except Exception as e:
             print("Error guardando:", e)
 

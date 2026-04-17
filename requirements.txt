@@ -7,5 +7,6 @@ ultralytics
 torch
 xgboost
 flask
-uvicorn fastapi
+uvicorn 
+fastapi
 pymysql
