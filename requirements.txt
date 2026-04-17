@@ -5,3 +5,7 @@ tqdm
 scikit-learn
 ultralytics
 torch
+xgboost
+flask
+uvicorn fastapi
+pymysql
