@@ -68,6 +68,7 @@ _BASE_DIR = Path(__file__).resolve().parent.parent.parent  # raíz del proyecto
 
 BASE_FOLDER = _BASE_DIR / "datasets" / "imagenes_camaras"
 
+
 DATASET_CSV = _BASE_DIR / "datasets" / "1. datasetCompleto.csv"
 
 CLASSES = ["car", "truck", "bus", "bike"]
