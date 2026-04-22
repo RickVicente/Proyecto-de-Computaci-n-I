@@ -6,8 +6,12 @@ def normalizar_dataset():
     label_encoder = LabelEncoder()
     scalerX = MinMaxScaler()
 
-    metadata_csv = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/1. datasetCompleto.csv"
-    output_csv   = r"C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/2. datasetNormalizado.csv"
+    import os
+    from pathlib import Path
+
+    _BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    metadata_csv = _BASE_DIR / "datasets" / "1. datasetCompleto.csv"
+    output_csv   = _BASE_DIR / "datasets" / "2. datasetNormalizado.csv"
 
     df = pd.read_csv(metadata_csv, encoding='utf-8')
 
@@ -24,8 +28,11 @@ def normalizar_dataset():
 
     # One-hot encoding para la letra de la carretera
     df = pd.get_dummies(df, columns=['carretera_letra'])
-    cols_one_hot = ['carretera_letra_A', 'carretera_letra_M', 'carretera_letra_N']
-    df[cols_one_hot] = df[cols_one_hot].astype(int)
+    cols_one_hot_letras = ['carretera_letra_A', 'carretera_letra_M', 'carretera_letra_N']
+    for col in cols_one_hot_letras:
+        if col not in df.columns:
+            df[col] = 0
+    df[cols_one_hot_letras] = df[cols_one_hot_letras].astype(int)
 
     # Crear categorías de franjas horarias
     def franja_horaria(hora):
@@ -41,8 +48,11 @@ def normalizar_dataset():
     df['franja_horaria'] = df['hora'].apply(franja_horaria)
 
     df = pd.get_dummies(df, columns=['franja_horaria'])
-    cols_one_hot = ['franja_horaria_mañana','franja_horaria_noche','franja_horaria_tarde']
-    df[cols_one_hot] = df[cols_one_hot].astype(int)
+    cols_one_hot_franjas = ['franja_horaria_mañana','franja_horaria_noche','franja_horaria_tarde', 'franja_horaria_madrugada']
+    for col in cols_one_hot_franjas:
+        if col not in df.columns:
+            df[col] = 0
+    df[cols_one_hot_franjas] = df[cols_one_hot_franjas].astype(int)
 
     df = df.drop(columns=['cars','trucks','buses','bikes','total','url_camara','carretera','fecha_descarga','hora_descarga','segundo'])
 

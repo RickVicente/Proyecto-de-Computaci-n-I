@@ -710,12 +710,12 @@
         const ROAD_REFS = ['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'A-42', 'M-40', 'M-50', 'M-614', 'N-6'];
 
         const overpassQuery = `
-[out:json][timeout:25];
-(
-  way["highway"]["ref"~"^(A-1|A-2|A-3|A-4|A-5|A-6|A-42|M-40|M-50|M-614|N-6)$"](${BBOX});
-);
-out geom qt;
-`;
+            [out:json][timeout:25];
+            (
+            way["highway"]["ref"~"^(A-1|A-2|A-3|A-4|A-5|A-6|A-42|M-40|M-50|M-614|N-6)$"](${BBOX});
+            );
+            out geom qt;
+        `;
 
         const overpassUrl =
             'https://overpass-api.de/api/interpreter?data=' +
