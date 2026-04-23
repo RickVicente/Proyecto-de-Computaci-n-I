@@ -791,14 +791,17 @@ updateClock();
 // ════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════
-function showView(name) {
+async function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   document.getElementById('nav-'  + name).classList.add('active');
 
   if (name === 'logs')    loadLogs();
-  if (name === 'camaras') { loadCamarasActivas(); loadCamarasDisponibles(); }
+  if (name === 'camaras') { 
+    await loadCamarasActivas();
+    await loadCamarasDisponibles();
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1038,7 +1041,8 @@ async function loadCamarasDisponibles() {
 
     allCatalog = d.camaras || [];
     label.textContent = `${allCatalog.length} cámaras en catálogo DGT`;
-    renderCatalog(allCatalog);
+    const noActivas = allCatalog.filter(c => !activeCamIds.has(String(c.id)));
+    renderCatalog(noActivas);
   } catch(e) {
     list.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">❌</div><div class="es-text">Error cargando catálogo: ${e.message}</div></div>`;
     toast('No se pudo cargar el catálogo DGT', 'error');
@@ -1071,11 +1075,14 @@ function renderCatalog(cameras) {
 }
 
 function filterCatalog() {
-  const q = document.getElementById('cam-filter').value.toLowerCase().trim();
-  if (!q) { renderCatalog(allCatalog); return; }
-  const filtered = allCatalog.filter(c =>
-    String(c.id).includes(q) ||
-    (c.carretera || '').toLowerCase().includes(q)
+  const q = document.getElementById('cam-filter').value.toLowerCase();
+  const base = allCatalog.filter(c => !activeCamIds.has(String(c.id)));
+  if (!q) { 
+    renderCatalog(base); 
+    return; 
+  }
+  const filtered = base.filter(c =>
+    !q || String(c.id).includes(q) || (c.carretera || '').toLowerCase().includes(q)
   );
   renderCatalog(filtered);
 }

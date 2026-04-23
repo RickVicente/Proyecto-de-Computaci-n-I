@@ -55,6 +55,12 @@ def admin_view():
         return send_file("adminView.html")
     return "Error: No se encuentra adminView.html ni mio.html", 404
 
+@app.route("/guestView")
+def guest_view():
+    if os.path.exists("guestView.html"):
+        return send_file("guestView.html")
+    return "Error: No se encuentra guestView.html ni mio.html", 404
+
 @app.route("/api/login", methods=["POST"])
 def login():
     datos = request.json
@@ -374,12 +380,15 @@ def camaras_disponibles():
 def camaras_activas():
     try:
         conn = get_mysql_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT id_zona FROM zonas")
-            ids = [str(row['id_zona']) for row in cursor.fetchall()]
+        cursor = conn.cursor(dictionary=True)  # 👈 CLAVE
+        cursor.execute("SELECT id_zona FROM zonas")
+        ids = [str(row['id_zona']) for row in cursor.fetchall()]
+        cursor.close()
         conn.close()
         return jsonify({"ids": ids})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/add_camara", methods=["POST"])
