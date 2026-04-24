@@ -28,10 +28,8 @@ DB_NAME = "madrive_users.db"
 # ─── RUTAS PARA SERVIR HTML ──────────────────────────────────
 @app.route("/")
 def index():
-    # Si ya tiene sesión, redirigir según su rol
+    # Si ya tiene una sesión iniciada, lo mandamos al mapa directo
     if "user_id" in session:
-        if session.get("rol") == "admin":
-            return redirect("/adminView")
         return redirect("/mapa")
 
     if os.path.exists("login.html"):
@@ -76,13 +74,10 @@ def mapa():
 def admin_view():
     if "user_id" not in session:
         return redirect("/")
-    # Solo admins pueden acceder
-    if session.get("rol") != "admin":
-        return redirect("/mapa")
 
     if os.path.exists("adminView.html"):
         return send_file("adminView.html")
-    return "Error: No se encuentra adminView.html", 404
+    return "Error: No se encuentra adminView.html ni mio.html", 404
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -388,69 +383,6 @@ def reentrenar():
         return jsonify({"error": str(e)})
 
 JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
-
-NIVEL_INFO = {
-    0: ("Tráfico Fluido",         "#22cc44"),
-    1: ("Tráfico Denso",          "#ffc107"),
-    2: ("Atasco",                 "#f57c00"),
-    3: ("Muy Congestionado",      "#d32f2f"),
-}
-
-@app.route("/api/logs_predicciones", methods=["GET"])
-def logs_predicciones():
-    try:
-        page  = max(1, int(request.args.get("page",  1)))
-        limit = max(1, min(200, int(request.args.get("limit", 50))))
-        offset = (page - 1) * limit
-
-        conn   = get_mysql_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Total de registros
-        cursor.execute("SELECT COUNT(*) AS total FROM predicciones")
-        total = cursor.fetchone()["total"]
-
-        # Consulta con JOIN para obtener datos de zona y usuario
-        cursor.execute("""
-            SELECT
-                p.id,
-                p.valor_ocupacion   AS nivel,
-                p.fecha_hora_prediccion,
-                p.fecha_calculo,
-                COALESCE(z.carretera, '—') AS carretera,
-                COALESCE(z.pk,        '—') AS pk,
-                COALESCE(u.username,  '?') AS usuario
-            FROM predicciones p
-            LEFT JOIN zonas    z ON z.id_zona  = p.zona_id
-            LEFT JOIN usuarios u ON u.id       = p.usuario_id
-            ORDER BY p.id DESC
-            LIMIT %s OFFSET %s
-        """, (limit, offset))
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-
-        logs = []
-        for r in rows:
-            nivel = r["nivel"] if r["nivel"] is not None else -1
-            desc, color = NIVEL_INFO.get(nivel, ("Desconocido", "#888888"))
-            logs.append({
-                "id":                    r["id"],
-                "nivel":                 nivel,
-                "descripcion":           desc,
-                "color":                 color,
-                "carretera":             r["carretera"],
-                "pk":                    r["pk"],
-                "usuario":               r["usuario"],
-                "fecha_hora_prediccion": str(r["fecha_hora_prediccion"] or "—"),
-                "fecha_calculo":         str(r["fecha_calculo"] or "—"),
-            })
-
-        return jsonify({"success": True, "total": total, "logs": logs})
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/zonas", methods=["GET"])
 def get_zonas():

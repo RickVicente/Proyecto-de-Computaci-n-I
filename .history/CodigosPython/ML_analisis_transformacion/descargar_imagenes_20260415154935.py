@@ -63,12 +63,11 @@ JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 
 INTERVALO = 17.5 * 60
 
+BASE_FOLDER = Path("C:/Users/ricky/OneDrive/Escritorio/Nuevas_Camaras_Madrid_Filtradas")
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-BASE_FOLDER = _PROJECT_ROOT / "Nuevas_Camaras_Madrid_Filtradas"
-
-DATASET_CSV = _PROJECT_ROOT / "CodigosPython" / "datasets" / "1. datasetCompleto.csv"
+DATASET_CSV = Path(
+    "C:/Users/ricky/OneDrive/Universidad/3º Año/1 - Proyecto de Computación I/Proyecto de Computacion/CodigosPython/datasets/1. datasetCompleto.csv"
+)
 
 MODEL = YOLO("yolov8x-seg.pt")
 MODEL.conf = 0.25
