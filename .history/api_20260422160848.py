@@ -5,7 +5,6 @@ import hashlib
 
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
-from datetime import datetime
 
 def get_mysql_connection():
     return mysql.connector.connect(
@@ -18,6 +17,7 @@ def get_mysql_connection():
 
 import os
 import requests
+from CodigosPython.ML_analisis_transformacion.analisis_imagen_actual import calcular_nivel_trafico
 
 app = Flask(__name__)
 # 🔐 CLAVE SECRETA OBLIGATORIA para encriptar las cookies de sesión (pon lo que quieras)
@@ -28,11 +28,9 @@ DB_NAME = "madrive_users.db"
 # ─── RUTAS PARA SERVIR HTML ──────────────────────────────────
 @app.route("/")
 def index():
-    # Si ya tiene sesión, redirigir según su rol
+    # Si ya tiene una sesión iniciada, lo mandamos al mapa directo
     if "user_id" in session:
-        if session.get("rol") == "admin":
-            return redirect("/adminView")
-        return redirect("/mapa")
+        return redirect("/login")
 
     if os.path.exists("login.html"):
         response = send_file("login.html")
@@ -76,20 +74,10 @@ def mapa():
 def admin_view():
     if "user_id" not in session:
         return redirect("/")
-    # Solo admins pueden acceder
-    if session.get("rol") != "admin":
-        return redirect("/mapa")
 
     if os.path.exists("adminView.html"):
         return send_file("adminView.html")
-    return "Error: No se encuentra adminView.html", 404
-
-@app.route("/guestView")
-def guest_view():
-    if os.path.exists("guestView.html"):
-        return send_file("guestView.html")
-    return "Error: No se encuentra guestView.html ni mio.html", 404
-
+    return "Error: No se encuentra adminView.html ni mio.html", 404
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -205,41 +193,32 @@ except ImportError as e:
     print(f"⚠️ Aviso: no se pudo importar predict.py. ({e})")
     hacer_prediccion = None
 
-def guardar_prediccion(input_model, nivel):
-    usuario_id = session.get("user_id")
-    if usuario_id is None:
-        raise RuntimeError("No hay un usuario autenticado para guardar la predicción.")
-
-    fecha_hora_prediccion = datetime(
-        input_model["anio"],
-        input_model["mes"],
-        input_model["dia"],
-        input_model["hora"],
-        input_model["minuto"]
-    )
-
+def guardar_prediccion(input_model, nivel, desc, color):
     conn = get_mysql_connection()
-    cursor = conn.cursor()
 
     try:
-        sql = """
-            INSERT INTO predicciones (
-                usuario_id, zona_id, fecha_hora_prediccion, valor_ocupacion
-            ) VALUES (%s, %s, %s, %s)
-        """
+        with conn.cursor() as cursor:
+            sql = """
+                INSERT INTO predicciones (
+                    usuario_id, zona_id, fehca_hora_prediccion, valor_ocupacion, fecha_calculo
+                ) VALUES (%s, %s, %s, %s, %s)
+            """
 
-        valores = (
-            usuario_id,
-            input_model["id_camara"],
-            fecha_hora_prediccion,
-            nivel
-        )
+            fecha = f"{input_model['anio']}-{input_model['mes']:02d}-{input_model['dia']:02d}"
+            hora = f"{input_model['hora']:02d}:{input_model['minuto']:02d}:00"
 
-        cursor.execute(sql, valores)
+            valores = (
+                input_model["id_camara"],
+                fecha,
+                hora,
+                nivel
+            )
+
+            cursor.execute(sql, valores)
+
         conn.commit()
 
     finally:
-        cursor.close()
         conn.close()
 
 @app.route("/predecir", methods=["POST"])
@@ -287,7 +266,7 @@ def predecir():
             color = "#d32f2f"  # Rojo
 
         try:
-            guardar_prediccion(input_model, nivel)
+            guardar_prediccion(input_model, nivel, desc, color)
         except Exception as e:
             print("Error guardando:", e)
 
@@ -380,8 +359,7 @@ def descargar_dataset():
             "error": str(e)
         }), 500
 
-_BASE_DIR = Path(__file__).resolve().parent
-DATASET_CSV = _BASE_DIR / "datasets" / "2. datasetNormalizado.csv"
+DATASET_CSV = r"CodigosPython\datasets\1. datasetCompleto.csv"
 
 @app.route("/reentrenar", methods=["POST"])
 def reentrenar():
@@ -431,6 +409,7 @@ def get_zonas():
         return jsonify({"success": True, "camaras": zonas})
 
     except Exception as e:
+        import traceback
         print("❌ ERROR EN /api/zonas")
         traceback.print_exc()
 
@@ -456,14 +435,12 @@ def camaras_disponibles():
 def camaras_activas():
     try:
         conn = get_mysql_connection()
-        cursor = conn.cursor(dictionary=True)  # 👈 CLAVE
-        cursor.execute("SELECT id_zona FROM zonas")
-        ids = [str(row['id_zona']) for row in cursor.fetchall()]
-        cursor.close()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT id_zona FROM zonas")
+            ids = [str(row['id_zona']) for row in cursor.fetchall()]
         conn.close()
         return jsonify({"ids": ids})
     except Exception as e:
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/add_camara", methods=["POST"])
@@ -472,6 +449,7 @@ def add_camara():
 
     cam_id = data.get("id")
     nombre = data.get("nombre", f"Camara {cam_id}")
+    descripcion = data.get("descripcion", "")
 
     try:
         # 🔍 Buscar en JSON DGT
@@ -491,9 +469,9 @@ def add_camara():
         conn = get_mysql_connection()
         with conn.cursor() as cursor:
             cursor.execute("""
-                INSERT IGNORE INTO zonas (id_zona, latitud, longitud, carretera, pk)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (cam_id, lat, lon, carretera, pk))
+                INSERT IGNORE INTO zonas (id_zona, latitud, longitud, carretera, pk, descripcion)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (cam_id, lat, lon, carretera, pk, descripcion))
         conn.commit()
         conn.close()
 
@@ -501,77 +479,6 @@ def add_camara():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route("/api/logs_predicciones", methods=["GET"])
-def logs_predicciones():
-    if "user_id" not in session:
-        return jsonify({"error": "No autorizado"}), 401
-
-    try:
-        conn = get_mysql_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Paginación opcional ?page=1&limit=50
-        page  = max(1, int(request.args.get("page",  1)))
-        limit = max(1, min(200, int(request.args.get("limit", 50))))
-        offset = (page - 1) * limit
-
-        # Total de registros
-        cursor.execute("SELECT COUNT(*) AS total FROM predicciones")
-        total = cursor.fetchone()["total"]
-
-        # Filas con datos legibles
-        cursor.execute("""
-            SELECT
-                p.id,
-                p.fecha_hora_prediccion,
-                p.valor_ocupacion,
-                p.fecha_calculo,
-                u.username  AS usuario,
-                z.carretera AS carretera,
-                z.pk        AS pk
-            FROM predicciones p
-            LEFT JOIN usuarios u ON u.id       = p.usuario_id
-            LEFT JOIN zonas    z ON z.id_zona  = p.zona_id
-            ORDER BY p.fecha_calculo DESC
-            LIMIT %s OFFSET %s
-        """, (limit, offset))
-        rows = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
-
-        # Convertir valores de ocupación numéricos a texto legible
-        nivel_map = {
-            0: {"texto": "Tráfico Fluido",          "color": "#22cc44"},
-            1: {"texto": "Tráfico Denso",            "color": "#ffc107"},
-            2: {"texto": "Atasco",                   "color": "#f57c00"},
-            3: {"texto": "Muy Congestionado",        "color": "#d32f2f"},
-        }
-
-        logs = []
-        for r in rows:
-            nivel = r.get("valor_ocupacion")
-            info  = nivel_map.get(nivel, {"texto": "—", "color": "#888"})
-            logs.append({
-                "id":                    r["id"],
-                "fecha_hora_prediccion": str(r["fecha_hora_prediccion"]) if r["fecha_hora_prediccion"] else "—",
-                "fecha_calculo":         str(r["fecha_calculo"])         if r["fecha_calculo"]         else "—",
-                "nivel":                 nivel,
-                "descripcion":           info["texto"],
-                "color":                 info["color"],
-                "usuario":               r["usuario"]   or "—",
-                "carretera":             r["carretera"] or "—",
-                "pk":                    r["pk"]        or "—",
-            })
-
-        return jsonify({"success": True, "total": total, "page": page, "limit": limit, "logs": logs})
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
 
 if __name__ == '__main__':
     # Arranca Flask en el puerto 5000 (Ojo: tendrás que cambiar el puerto en mapa.html si el puerto cambió de 8000 a 5000)

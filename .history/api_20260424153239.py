@@ -18,6 +18,7 @@ def get_mysql_connection():
 
 import os
 import requests
+from CodigosPython.ML_analisis_transformacion.analisis_imagen_actual import calcular_nivel_trafico
 
 app = Flask(__name__)
 # 🔐 CLAVE SECRETA OBLIGATORIA para encriptar las cookies de sesión (pon lo que quieras)
@@ -380,6 +381,7 @@ def descargar_dataset():
             "error": str(e)
         }), 500
 
+from pathlib import Path
 _BASE_DIR = Path(__file__).resolve().parent
 DATASET_CSV = _BASE_DIR / "datasets" / "2. datasetNormalizado.csv"
 
@@ -406,6 +408,69 @@ def reentrenar():
 
 JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
 
+NIVEL_INFO = {
+    0: ("Tráfico Fluido",         "#22cc44"),
+    1: ("Tráfico Denso",          "#ffc107"),
+    2: ("Atasco",                 "#f57c00"),
+    3: ("Muy Congestionado",      "#d32f2f"),
+}
+
+@app.route("/api/logs_predicciones", methods=["GET"])
+def logs_predicciones():
+    try:
+        page  = max(1, int(request.args.get("page",  1)))
+        limit = max(1, min(200, int(request.args.get("limit", 50))))
+        offset = (page - 1) * limit
+
+        conn   = get_mysql_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Total de registros
+        cursor.execute("SELECT COUNT(*) AS total FROM predicciones")
+        total = cursor.fetchone()["total"]
+
+        # Consulta con JOIN para obtener datos de zona y usuario
+        cursor.execute("""
+            SELECT
+                p.id,
+                p.valor_ocupacion   AS nivel,
+                p.fecha_hora_prediccion,
+                p.fecha_calculo,
+                COALESCE(z.carretera, '—') AS carretera,
+                COALESCE(z.pk,        '—') AS pk,
+                COALESCE(u.username,  '?') AS usuario
+            FROM predicciones p
+            LEFT JOIN zonas    z ON z.id_zona  = p.zona_id
+            LEFT JOIN usuarios u ON u.id       = p.usuario_id
+            ORDER BY p.id DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        logs = []
+        for r in rows:
+            nivel = r["nivel"] if r["nivel"] is not None else -1
+            desc, color = NIVEL_INFO.get(nivel, ("Desconocido", "#888888"))
+            logs.append({
+                "id":                    r["id"],
+                "nivel":                 nivel,
+                "descripcion":           desc,
+                "color":                 color,
+                "carretera":             r["carretera"],
+                "pk":                    r["pk"],
+                "usuario":               r["usuario"],
+                "fecha_hora_prediccion": str(r["fecha_hora_prediccion"] or "—"),
+                "fecha_calculo":         str(r["fecha_calculo"] or "—"),
+            })
+
+        return jsonify({"success": True, "total": total, "logs": logs})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route("/api/zonas", methods=["GET"])
 def get_zonas():
     try:
@@ -431,6 +496,7 @@ def get_zonas():
         return jsonify({"success": True, "camaras": zonas})
 
     except Exception as e:
+        import traceback
         print("❌ ERROR EN /api/zonas")
         traceback.print_exc()
 
@@ -463,6 +529,7 @@ def camaras_activas():
         conn.close()
         return jsonify({"ids": ids})
     except Exception as e:
+        import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -568,9 +635,15 @@ def logs_predicciones():
         return jsonify({"success": True, "total": total, "page": page, "limit": limit, "logs": logs})
 
     except Exception as e:
+        import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"success": True})
 
 
 if __name__ == '__main__':
