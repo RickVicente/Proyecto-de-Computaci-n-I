@@ -304,7 +304,7 @@ def descargar_dataset():
 
 from pathlib import Path
 _BASE_DIR = Path(__file__).resolve().parent
-DATASET_CSV = _BASE_DIR / "datasets" / "2. datasetNormalizado.csv"
+DATASET_CSV   = _BASE_DIR / "CodigosPython" / "datasets" / "2. datasetNormalizado.csv"
 
 @app.route("/reentrenar", methods=["POST"])
 def reentrenar():
@@ -320,7 +320,15 @@ def reentrenar():
         model = xgb.XGBClassifier()
         model.fit(X, y)
 
-        model.save_model("xgboost_model.json")
+        model_dir = _BASE_DIR / "ModelosIA"
+        model_dir.mkdir(exist_ok=True)
+
+        model_path = model_dir / "xgboost_model.json"
+
+        if model_path.exists():
+            model_path.unlink()
+
+        model.save_model(model_path)
 
         return jsonify({"success": True, "message": "Modelo reentrenado"})
 

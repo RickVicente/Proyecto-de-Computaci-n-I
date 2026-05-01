@@ -7,6 +7,6 @@ ultralytics
 torch
 xgboost
 flask
-uvicorn fastapi
+uvicorn
 pymysql
 mysql-connector-python

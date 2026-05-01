@@ -1,6 +1,7 @@
 import os
 import time
 import csv
+import cv2
 import requests
 import numpy as np
 from datetime import datetime
@@ -66,11 +67,23 @@ INTERVALO = 17.5 * 60
 # Rutas relativas al proyecto (compatibles con cualquier máquina)
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent  # raíz del proyecto
 
-BASE_FOLDER = _BASE_DIR / "datasets" / "imagenes_camaras"
-
-DATASET_CSV = _BASE_DIR / "datasets" / "1. datasetCompleto.csv"
+DATASET_CSV = _BASE_DIR / "CodigosPython" / "datasets" / "1. datasetCompleto.csv"
 
 CLASSES = ["car", "truck", "bus", "bike"]
+
+def obtener_camaras_bbdd():
+    from api import get_mysql_connection
+
+    conn = get_mysql_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id_zona FROM zonas")
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return [str(row["id_zona"]) for row in rows]
 
 def obtener_siguiente_id(dataset_csv):
     if not dataset_csv.exists():
@@ -86,6 +99,10 @@ def obtener_siguiente_id(dataset_csv):
         return 1
 
 def cargar_json():
+    import requests
+
+    JSON_URL = "https://www.dgt.es/.content/.assets/json/camaras.json"
+
     try:
         r = requests.get(JSON_URL, timeout=10)
         r.raise_for_status()
@@ -133,13 +150,10 @@ def procesar_camara_con_modelo(cam_id, url, cam_data, id_entrada, model):
         hora = now.strftime("%H:%M:%S")
 
         img = requests.get(url, timeout=10).content
-        filename = f"{cam_id}_{fecha}_{hora.replace(':','-')}.jpg"
-        img_path = BASE_FOLDER / cam_id / filename
+        img_array = np.frombuffer(img, np.uint8)
+        img_cv2 = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
-        with open(img_path, "wb") as f:
-            f.write(img)
-
-        result = model(str(img_path))[0]
+        result = model(img_cv2)[0]
 
         counts = {c: 0 for c in CLASSES}
         for box in result.boxes:
@@ -160,7 +174,6 @@ def procesar_camara_con_modelo(cam_id, url, cam_data, id_entrada, model):
                 lon,
                 fecha,
                 hora,
-                str(img_path),
                 counts["car"],
                 counts["truck"],
                 counts["bus"],
@@ -175,12 +188,14 @@ def procesar_camara_con_modelo(cam_id, url, cam_data, id_entrada, model):
         print(f"Error cámara {cam_id}:", e)
 
 def ejecutar_descarga():
+    import csv
+    from ultralytics import YOLO
+    from pathlib import Path
+
     print("Ejecutando descarga manual...\n")
 
-    # Crear carpetas y cargar modelo aquí (no al importar)
-    BASE_FOLDER.mkdir(parents=True, exist_ok=True)
-    for cam_id in CAMERAS:
-        (BASE_FOLDER / cam_id).mkdir(parents=True, exist_ok=True)
+    _BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    DATASET_CSV = _BASE_DIR / "CodigosPython" / "datasets" / "1. datasetCompleto.csv"
 
     if not DATASET_CSV.exists():
         DATASET_CSV.parent.mkdir(parents=True, exist_ok=True)
@@ -188,7 +203,7 @@ def ejecutar_descarga():
             writer = csv.writer(f)
             writer.writerow([
                 "id_entrada", "id_camara", "carretera", "latitud", "longitud",
-                "fecha_descarga", "hora_descarga", "url_camara",
+                "fecha_descarga", "hora_descarga",
                 "cars", "trucks", "buses", "bikes", "total", "nivel_ocupacion"
             ])
 
@@ -196,10 +211,42 @@ def ejecutar_descarga():
     model.conf = 0.25
 
     id_entrada = obtener_siguiente_id(DATASET_CSV)
-    cam_data   = cargar_json()
+    cam_data = cargar_json()
 
-    for cam_id, url in CAMERAS.items():
-        procesar_camara_con_modelo(cam_id, url, cam_data, id_entrada, model)
+    # 🔥 Obtener cámaras desde BBDD
+    from api import get_mysql_connection
+
+    conn = get_mysql_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id_zona FROM zonas")
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    ids_bbdd = [str(row["id_zona"]) for row in rows]
+
+    for cam_id in ids_bbdd:
+
+        cam = cam_data.get(cam_id)
+
+        if not cam:
+            continue
+
+        url = cam.get("url") or cam.get("imagen")
+
+        if not url:
+            continue
+
+        procesar_camara_con_modelo(
+            cam_id,
+            url,
+            cam_data,
+            id_entrada,
+            model
+        )
+
         id_entrada += 1
 
     print("Descarga finalizada\n")

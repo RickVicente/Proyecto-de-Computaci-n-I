@@ -2,18 +2,24 @@ def normalizar_dataset():
     import pandas as pd
     import joblib
     from sklearn.preprocessing import MinMaxScaler, LabelEncoder
-
-    label_encoder = LabelEncoder()
-    scalerX = MinMaxScaler()
-
-    import os
     from pathlib import Path
+    import os
 
     _BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    metadata_csv = _BASE_DIR / "datasets" / "1. datasetCompleto.csv"
-    output_csv   = _BASE_DIR / "datasets" / "2. datasetNormalizado.csv"
+    metadata_csv = _BASE_DIR / "CodigosPython" / "datasets" / "1. datasetCompleto.csv"
+    output_csv   = _BASE_DIR / "CodigosPython" / "datasets" / "2. datasetNormalizado.csv"
+
+    model_dir = _BASE_DIR / "ModelosIA"
+    model_dir.mkdir(exist_ok=True)
+
+    scaler_path = model_dir / "scaler.pkl"
+    encoder_path = model_dir / "encoder.pkl"
 
     df = pd.read_csv(metadata_csv, encoding='utf-8')
+
+    if output_csv.exists():
+        df_existing = pd.read_csv(output_csv)
+        df = df.iloc[len(df_existing):]
 
     # Separar fecha y hora
     df[['anio', 'mes', 'dia']] = df['fecha_descarga'].str.split('-', expand=True)
@@ -54,14 +60,36 @@ def normalizar_dataset():
             df[col] = 0
     df[cols_one_hot_franjas] = df[cols_one_hot_franjas].astype(int)
 
-    df = df.drop(columns=['cars','trucks','buses','bikes','total','url_camara','carretera','fecha_descarga','hora_descarga','segundo'])
-
-    df['carretera_numero'] = label_encoder.fit_transform(df['carretera_numero'])
+    df = df.drop(columns=['cars','trucks','buses','bikes','total','carretera','fecha_descarga','hora_descarga','segundo'])
 
     variables = ['id_camara','latitud','longitud','anio','mes','dia','hora','minuto','carretera_numero']
-    df[variables] = scalerX.fit_transform(df[variables])
 
-    df = df.sample(frac=1).reset_index(drop=True)
+    if not scaler_path.exists() or not encoder_path.exists():
+        label_encoder = LabelEncoder()
+        scalerX = MinMaxScaler()
 
-    # joblib.dump(scalerX, "scaler.pkl")
-    df.to_csv(output_csv, index=False)
+        df['carretera_numero'] = label_encoder.fit_transform(df['carretera_numero'])
+        df[variables] = scalerX.fit_transform(df[variables])
+
+        joblib.dump(scalerX, scaler_path)
+        joblib.dump(label_encoder, encoder_path)
+
+        df = df.sample(frac=1).reset_index(drop=True)
+
+        df.to_csv(output_csv, index=False)
+
+    else:
+        scalerX = joblib.load(scaler_path)
+        label_encoder = joblib.load(encoder_path)
+
+        df['carretera_numero'] = df['carretera_numero'].apply(
+            lambda x: label_encoder.transform([x])[0] if x in label_encoder.classes_ else -1
+        )
+        df[variables] = scalerX.transform(df[variables])
+
+        df = df.sample(frac=1).reset_index(drop=True)
+
+        if not output_csv.exists():
+            df.to_csv(output_csv, index=False)
+        else:
+            df.to_csv(output_csv, mode='a', header=False, index=False)
