@@ -1,6 +1,10 @@
 from flask import Flask, request, jsonify, send_file, session, redirect
 import mysql.connector
 import traceback
+import hashlib
+
+def hash_password(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
 from datetime import datetime
 
 def get_mysql_connection():
@@ -14,7 +18,6 @@ def get_mysql_connection():
 
 import os
 import requests
-from CodigosPython.ML_analisis_transformacion.analisis_imagen_actual import calcular_nivel_trafico
 
 app = Flask(__name__)
 # 🔐 CLAVE SECRETA OBLIGATORIA para encriptar las cookies de sesión (pon lo que quieras)
@@ -25,13 +28,36 @@ DB_NAME = "madrive_users.db"
 # ─── RUTAS PARA SERVIR HTML ──────────────────────────────────
 @app.route("/")
 def index():
-    # Si ya tiene una sesión iniciada, lo mandamos al mapa directo
+    # Si ya tiene sesión, redirigir según su rol
     if "user_id" in session:
+        if session.get("rol") == "admin":
+            return redirect("/adminView")
         return redirect("/mapa")
 
     if os.path.exists("login.html"):
-        return send_file("login.html")
+        response = send_file("login.html")
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response
     return "Error: No se encuentra login.html", 404
+
+@app.route("/register")
+def register_page():
+    if "user_id" in session:
+        return redirect("/mapa")
+    import os
+    if os.path.exists("register.html"):
+        response = send_file("register.html")
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response
+    return "Error: No se encuentra register.html", 404
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"success": True, "redirect": "/"})
+
 
 @app.route("/mapa")
 def mapa():
@@ -50,16 +76,20 @@ def mapa():
 def admin_view():
     if "user_id" not in session:
         return redirect("/")
+    # Solo admins pueden acceder
+    if session.get("rol") != "admin":
+        return redirect("/mapa")
 
     if os.path.exists("adminView.html"):
         return send_file("adminView.html")
-    return "Error: No se encuentra adminView.html ni mio.html", 404
+    return "Error: No se encuentra adminView.html", 404
 
 @app.route("/guestView")
 def guest_view():
     if os.path.exists("guestView.html"):
         return send_file("guestView.html")
     return "Error: No se encuentra guestView.html ni mio.html", 404
+
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -69,6 +99,8 @@ def login():
 
     if not email or not password:
         return jsonify({"success": False, "message": "Faltan datos."}), 400
+
+    hashed_pw = hash_password(password)
 
     # 🔎 Conexión a MySQL
     conn = get_mysql_connection()
@@ -86,7 +118,7 @@ def login():
     conn.close()
 
     # 🛑 Verificar credenciales
-    if user and user["password"] == password:  # ⚠️ luego usa hash
+    if user and user["password"] == hashed_pw:
         session["user_id"] = user["id"]
         session["rol"] = user["rol"]  # ← aquí guardas el ENUM directamente
 
@@ -108,6 +140,52 @@ def login():
         "success": False,
         "message": "Usuario o contraseña incorrectos."
     }), 401
+
+@app.route("/api/register", methods=["POST"])
+def register():
+    datos = request.json
+    username = datos.get("username", "").strip()
+    email = datos.get("email", "").strip()
+    password = datos.get("password", "")
+
+    if not username or not email or not password:
+        return jsonify({"success": False, "message": "Faltan datos obligatorios."}), 400
+
+    if len(password) < 6:
+        return jsonify({"success": False, "message": "La contraseña debe tener al menos 6 caracteres."}), 400
+
+    hashed_pw = hash_password(password)
+
+    try:
+        conn = get_mysql_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Comprobar si el username o email ya existen
+        cursor.execute(
+            "SELECT id FROM usuarios WHERE username = %s OR email = %s",
+            (username, email)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "message": "El usuario o correo ya está registrado."}), 409
+
+        # Insertar nuevo usuario
+        cursor.execute(
+            "INSERT INTO usuarios (username, email, password, rol) VALUES (%s, %s, %s, 'usuario')",
+            (username, email, hashed_pw)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "Cuenta creada correctamente."})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "message": "Error interno del servidor."}), 500
 
 # ─── ENDPOINT DE IA (Predicción real) ────────────────────────────
 
@@ -302,7 +380,6 @@ def descargar_dataset():
             "error": str(e)
         }), 500
 
-from pathlib import Path
 _BASE_DIR = Path(__file__).resolve().parent
 DATASET_CSV   = _BASE_DIR / "CodigosPython" / "datasets" / "2. datasetNormalizado.csv"
 
@@ -362,7 +439,6 @@ def get_zonas():
         return jsonify({"success": True, "camaras": zonas})
 
     except Exception as e:
-        import traceback
         print("❌ ERROR EN /api/zonas")
         traceback.print_exc()
 
@@ -395,7 +471,6 @@ def camaras_activas():
         conn.close()
         return jsonify({"ids": ids})
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -501,15 +576,9 @@ def logs_predicciones():
         return jsonify({"success": True, "total": total, "page": page, "limit": limit, "logs": logs})
 
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
-
-@app.route("/api/logout", methods=["POST"])
-def logout():
-    session.clear()
-    return jsonify({"success": True})
 
 
 if __name__ == '__main__':

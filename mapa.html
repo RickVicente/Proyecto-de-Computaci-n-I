@@ -36,7 +36,8 @@
 
         body {
             font-family: 'Inter', 'Segoe UI', sans-serif;
-            background: #081122; /* Fondo oscuro muy sutil para que empate con bordes y mapa si falla carga */
+            background: #081122;
+            /* Fondo oscuro muy sutil para que empate con bordes y mapa si falla carga */
             color: var(--white);
             height: 100vh;
             display: flex;
@@ -118,6 +119,30 @@
             font-size: 12px;
             color: rgba(200, 225, 255, 0.85);
             margin-left: auto;
+        }
+
+        /* ─── LOGOUT BUTTON ─── */
+        .btn-logout {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            background: rgba(211, 47, 47, 0.18);
+            border: 1px solid rgba(239, 83, 80, 0.45);
+            color: #ff8a80;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-logout:hover {
+            background: rgba(211, 47, 47, 0.35);
+            border-color: #ef5350;
+            color: #fff;
         }
 
         #stats-bar {
@@ -376,6 +401,7 @@
             cursor: pointer;
             transition: 0.2s;
         }
+
         .pred-input::-webkit-calendar-picker-indicator:hover {
             opacity: 1;
         }
@@ -474,6 +500,7 @@
             </div>
         </div>
         <span>Sistema de Análisis de Tráfico · Madrid</span>
+        <button class="btn-logout" onclick="cerrarSesion()">🔓 Cerrar sesión</button>
     </header>
 
     <div id="stats-bar">
@@ -980,6 +1007,13 @@ out geom qt;
                 predBtn.disabled = false;
                 predBtn.textContent = 'Predecir tráfico';
             }
+        }
+
+        async function cerrarSesion() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+            } catch(e) {}
+            window.location.href = '/';
         }
 
     </script>
