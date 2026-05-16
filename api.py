@@ -265,7 +265,8 @@ def predecir():
         "carretera_letra_N": int(datos.get("carretera_letra_N", 0)),
         "franja_horaria_mañana": int(datos.get("franja_horaria_mañana", 0)),
         "franja_horaria_noche": int(datos.get("franja_horaria_noche", 0)),
-        "franja_horaria_tarde": int(datos.get("franja_horaria_tarde", 0))
+        "franja_horaria_tarde": int(datos.get("franja_horaria_tarde", 0)),
+        "franja_horaria_madrugada": int(datos.get("franja_horaria_madrugada", 0))
     }
 
     try:

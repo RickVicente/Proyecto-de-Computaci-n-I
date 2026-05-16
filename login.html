@@ -656,11 +656,28 @@
                 padding: 32px 24px 28px;
             }
         }
+        .input-wrapper .toggle-pw {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 15px;
+            padding: 4px;
+            transition: color 0.2s;
+            /* Añadido para centrado perfecto del icono */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 
 <body>
-
+    <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Background -->
     <div class="bg"></div>
     <div class="bg-overlay"></div>
@@ -691,7 +708,7 @@
                 </div>
                 <div class="bstat">
                     <div class="bstat-line"></div>
-                    <span>11 carreteras con cobertura completa</span>
+                    <span>Más de 12 carreteras con cobertura completa</span>
                 </div>
                 <div class="bstat">
                     <div class="bstat-dot" style="background:#2196f3; box-shadow:0 0 8px #2196f3;"></div>
@@ -723,7 +740,7 @@
                 <div class="form-group">
                     <label for="email">Usuario / Correo</label>
                     <div class="input-wrapper">
-                        <span class="icon">👤</span>
+                        <span class="icon"></span>
                         <input type="text" id="email" name="email" placeholder="usuario@madrive.es"
                             autocomplete="username" required />
                     </div>
@@ -732,11 +749,12 @@
                 <div class="form-group">
                     <label for="password">Contraseña</label>
                     <div class="input-wrapper">
-                        <span class="icon">🔒</span>
+                        <span class="icon"></span>
                         <input type="password" id="password" name="password" placeholder="••••••••"
                             autocomplete="current-password" required />
-                        <button type="button" class="toggle-pw" id="togglePw"
-                            aria-label="Mostrar contraseña">👁️</button>
+                        <button type="button" class="toggle-pw" id="togglePw" aria-label="Mostrar contraseña">
+                            <i data-lucide="eye-off"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -749,7 +767,7 @@
                 </div>
 
                 <button type="submit" class="btn-login" id="btnLogin">
-                    <span class="btn-text">🔓 &nbsp;Entrar al sistema</span>
+                    <span class="btn-text">&nbsp;Entrar al sistema</span>
                     <div class="btn-spinner"></div>
                 </button>
 
@@ -811,7 +829,7 @@
         </div>
 
     </div><!-- /page -->
-
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         // ─── Decorative floating nodes ───────────────────
         (function () {
@@ -861,7 +879,11 @@
         togglePw.addEventListener('click', () => {
             const isHidden = pwInput.type === 'password';
             pwInput.type = isHidden ? 'text' : 'password';
-            togglePw.textContent = isHidden ? '🙈' : '👁️';
+            togglePw.innerHTML = isHidden
+                ? '<i data-lucide="eye"></i>'
+                : '<i data-lucide="eye-off"></i>';
+
+            lucide.createIcons();
         });
 
         // ─── Forgot password ──────────────────────────────
@@ -942,7 +964,9 @@
 
         function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
     </script>
-
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 
 </html>

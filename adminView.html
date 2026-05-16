@@ -360,12 +360,24 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      justify-content: space-between;
       transition: border-color var(--transition), box-shadow var(--transition);
     }
     .action-card:hover { border-color: rgba(33,150,243,0.45); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
     .action-card-icon { font-size: 32px; }
     .action-card-title { font-size: 16px; font-weight: 700; }
     .action-card-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .action-card > button {
+      align-self: center;
+    }
+
+    .embed-map-frame {
+      width: 100%;
+      min-height: 680px;
+      border: 0;
+      border-radius: var(--radius);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+    }
 
     /* ─── LOG STATUS BOX ──────────────────────────────── */
     .log-box {
@@ -473,6 +485,27 @@
     .cam-item-status { font-size: 11px; font-weight: 600; }
     .cam-item-status.on  { color: var(--green); }
     .cam-item-status.off { color: var(--text-muted); }
+    .cam-active-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .cam-item-img {
+      width: 100%;
+      height: 142px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .cam-item-meta {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
 
     /* ─── TOAST ───────────────────────────────────────── */
     #toast-container {
@@ -541,7 +574,7 @@
 
 <!-- ═══════════════════════ HEADER ═══════════════════════ -->
 <header id="app-header">
-  <a class="logo" href="/mapa" title="Ir al mapa">
+  <a class="logo" href="#" onclick="showView('mapa'); return false;" title="Ir al mapa">
     <div class="logo-icon">🚦</div>
     <span class="logo-text">MaDrive</span>
   </a>
@@ -578,7 +611,7 @@
     <div class="sidebar-divider"></div>
     <p class="sidebar-section-label">Accesos</p>
 
-    <div class="nav-item" onclick="window.location.href='/mapa'">
+    <div class="nav-item" onclick="showView('mapa')" id="nav-mapa">
       <span class="nav-icon">🗺️</span> Ver mapa público
     </div>
   </nav>
@@ -591,7 +624,7 @@
 
       <div class="page-header">
         <div>
-          <div class="page-title">📋 Logs de Predicciones</div>
+          <div class="page-title">Logs de Predicciones</div>
           <div class="page-subtitle">Historial completo de predicciones de tráfico realizadas por el sistema.</div>
         </div>
         <button class="btn btn-outline btn-sm" id="btn-refresh-logs" onclick="loadLogs()">↻ Actualizar</button>
@@ -607,24 +640,29 @@
         <div class="kpi-card">
           <div class="kpi-label">Tráfico fluido</div>
           <div class="kpi-value" style="color:var(--green)" id="kpi-fluido">—</div>
-          <div class="kpi-sub">nivel 0</div>
+          <div class="kpi-sub">Tráfico de Nivel 0</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Tráfico denso</div>
           <div class="kpi-value" style="color:var(--yellow)" id="kpi-denso">—</div>
-          <div class="kpi-sub">nivel 1</div>
+          <div class="kpi-sub">Tráfico de Nivel 1</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Atascos / Congestión</div>
-          <div class="kpi-value" style="color:var(--red)" id="kpi-atasco">—</div>
-          <div class="kpi-sub">nivel 2 y 3</div>
+          <div class="kpi-label">Atasco</div>
+          <div class="kpi-value" style="color:var(--orange)" id="kpi-atasco">—</div>
+          <div class="kpi-sub">Tráfico de Nivel 2</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Congestión</div>
+          <div class="kpi-value" style="color:var(--red)" id="kpi-congestion">—</div>
+          <div class="kpi-sub">Tráfico de Nivel 3</div>
         </div>
       </div>
 
       <!-- Tabla -->
       <div class="panel">
         <div class="panel-head">
-          <span class="panel-title">🗂️ Historial</span>
+          <span class="panel-title">Historial</span>
           <span id="logs-count-label" style="font-size:12px;color:var(--text-muted)">—</span>
         </div>
         <div class="data-table-wrap">
@@ -659,8 +697,8 @@
 
       <div class="page-header">
         <div>
-          <div class="page-title">🤖 Modelo & Dataset</div>
-          <div class="page-subtitle">Descarga nuevas imágenes de cámaras y reentrena el modelo XGBoost.</div>
+          <div class="page-title">Modelo & Dataset</div>
+          <div class="page-subtitle">Descarga nuevos datos de cámaras y reentrena el modelo XGBoost.</div>
         </div>
       </div>
 
@@ -669,16 +707,16 @@
         <!-- Card: Descargar imágenes -->
         <div class="action-card">
           <div class="action-card-icon">📥</div>
-          <div class="action-card-title">Descargar nuevas imágenes</div>
+          <div class="action-card-title">Descargar nuevos datos</div>
           <div class="action-card-desc">
-            Ejecuta el script de descarga de fotogramas desde las cámaras DGT activas y actualiza el dataset local con las imágenes más recientes.
+            Ejecuta el script de descarga de fotogramas desde las cámaras DGT activas y actualiza el dataset local con los históricos más recientes.
           </div>
           <div class="progress-bar-wrap" id="dl-progress-wrap">
             <div class="progress-bar-fill" id="dl-progress-bar"></div>
           </div>
           <div class="log-box" id="dl-log"></div>
           <button class="btn btn-primary" id="btn-descargar" onclick="descargarDataset()">
-            <span id="dl-icon">📥</span> Descargar imágenes
+            <span id="dl-icon"></span> Descargar nuevos datos
           </button>
         </div>
 
@@ -694,7 +732,7 @@
           </div>
           <div class="log-box" id="rt-log"></div>
           <button class="btn btn-success" id="btn-reentrenar" onclick="reentrenarModelo()">
-            <span id="rt-icon">🚀</span> Reentrenar modelo
+            <span id="rt-icon"></span> Reentrenar modelo
           </button>
         </div>
 
@@ -706,7 +744,7 @@
 
       <div class="page-header">
         <div>
-          <div class="page-title">📷 Gestión de Cámaras</div>
+          <div class="page-title">Gestión de Cámaras</div>
           <div class="page-subtitle">Añade nuevas cámaras desde el catálogo oficial de la DGT a la base de datos del sistema.</div>
         </div>
         <button class="btn btn-outline btn-sm" onclick="loadCamarasDisponibles()">↻ Recargar catálogo</button>
@@ -735,6 +773,23 @@
         </div>
       </div>
 
+      <!-- Cámaras activas -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">📸 Cámaras activas</span>
+          <span id="cam-active-label" style="font-size:12px;color:var(--text-muted)">Cargando…</span>
+        </div>
+        <div class="panel-body" style="padding-bottom:0">
+          <div class="cam-active-list" id="cam-active-list">
+            <div class="empty-state" style="grid-column:1/-1">
+              <div class="es-icon">⏳</div>
+              <div class="es-text">Cargando cámaras activas…</div>
+            </div>
+          </div>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+
       <!-- Catálogo DGT -->
       <div class="panel">
         <div class="panel-head">
@@ -756,6 +811,27 @@
           </div>
         </div>
         <div style="height:16px"></div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════ VIEW: MAPA ══════════════ -->
+    <section class="view" id="view-mapa">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Mapa público</div>
+          <div class="page-subtitle">Visualiza el mapa público sin salir de la vista de administración.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">🗺️ Mapa incrustado</span>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <iframe class="embed-map-frame" src="/mapa?embed=1"></iframe>
+        </div>
       </div>
 
     </section>
@@ -869,7 +945,7 @@ function renderLogsTable(logs) {
       <td style="font-size:12px">${l.fecha_hora_prediccion}</td>
       <td>
         <span class="badge" style="border-color:${l.color}20;background:${l.color}18;color:${l.color}">
-          ${nivelEmoji(l.nivel)} ${l.descripcion}
+          ${l.descripcion}
         </span>
       </td>
       <td style="color:var(--text-muted)">${l.usuario}</td>
@@ -878,15 +954,12 @@ function renderLogsTable(logs) {
   `).join('');
 }
 
-function nivelEmoji(n) {
-  return ['😴','🚗','🚦','🚨'][n] ?? '❓';
-}
-
 function updateKPIs(logs, total) {
   document.getElementById('kpi-total').textContent  = total;
   document.getElementById('kpi-fluido').textContent = logs.filter(l => l.nivel === 0).length;
   document.getElementById('kpi-denso').textContent  = logs.filter(l => l.nivel === 1).length;
-  document.getElementById('kpi-atasco').textContent = logs.filter(l => l.nivel >= 2).length;
+  document.getElementById('kpi-atasco').textContent = logs.filter(l => l.nivel == 2).length;
+  document.getElementById('kpi-congestion').textContent = logs.filter(l => l.nivel == 3).length;
 }
 
 function updatePagination() {
@@ -1031,7 +1104,9 @@ async function loadCamarasActivas() {
 async function loadCamarasDisponibles() {
   const list  = document.getElementById('cam-list');
   const label = document.getElementById('cam-catalog-label');
+  const activeLabel = document.getElementById('cam-active-label');
   list.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">⏳</div><div class="es-text">Cargando catálogo DGT…</div></div>`;
+  activeLabel.textContent = 'Cargando…';
 
   try {
     const r = await fetch('/api/camaras_disponibles');
@@ -1041,12 +1116,43 @@ async function loadCamarasDisponibles() {
 
     allCatalog = d.camaras || [];
     label.textContent = `${allCatalog.length} cámaras en catálogo DGT`;
+
+    const activeCameras = allCatalog.filter(c => activeCamIds.has(String(c.id)));
+    renderActiveCameras(activeCameras);
+
     const noActivas = allCatalog.filter(c => !activeCamIds.has(String(c.id)));
     renderCatalog(noActivas);
   } catch(e) {
     list.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">❌</div><div class="es-text">Error cargando catálogo: ${e.message}</div></div>`;
+    document.getElementById('cam-active-list').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">❌</div><div class="es-text">Error cargando cámaras activas</div></div>`;
     toast('No se pudo cargar el catálogo DGT', 'error');
   }
+}
+
+function renderActiveCameras(cameras) {
+  const list = document.getElementById('cam-active-list');
+  const label = document.getElementById('cam-active-label');
+
+  if (!cameras.length) {
+    label.textContent = 'No hay cámaras activas';
+    list.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">📭</div><div class="es-text">No hay cámaras activas registradas.</div></div>`;
+    return;
+  }
+
+  label.textContent = `${cameras.length} cámaras activas`;
+
+  list.innerHTML = cameras.slice(0, 50).map(c => `
+      <div class="cam-item active">
+        <img class="cam-item-img" src="${c.imagen || ''}" alt="Cámara ${c.id}" loading="lazy" onerror="this.onerror=null;this.src='https://via.placeholder.com/320x180?text=Sin+imagen'" />
+        <div class="cam-item-meta">
+          <div>
+            <div class="cam-item-id">📷 ID ${c.id}</div>
+            <div class="cam-item-road">🛣️ ${c.carretera || '—'}  PK ${c.pk || '—'}</div>
+          </div>
+          <div class="cam-item-status on">● En sistema</div>
+        </div>
+      </div>
+    `).join('');
 }
 
 function renderCatalog(cameras) {
@@ -1061,10 +1167,15 @@ function renderCatalog(cameras) {
     const isActive = activeCamIds.has(String(c.id));
     return `
       <div class="cam-item ${isActive ? 'active' : ''}">
-        <div class="cam-item-id">📷 ID ${c.id}</div>
-        <div class="cam-item-road">🛣️ ${c.carretera || '—'}  PK ${c.pk || '—'}</div>
-        <div class="cam-item-status ${isActive ? 'on' : 'off'}">
-          ${isActive ? '● En sistema' : '○ No añadida'}
+        <img class="cam-item-img" src="${c.imagen || 'https://via.placeholder.com/320x180?text=Sin+imagen'}" alt="Cámara ${c.id}" loading="lazy" onerror="this.onerror=null;this.src='https://via.placeholder.com/320x180?text=Sin+imagen'" />
+        <div class="cam-item-meta">
+          <div>
+            <div class="cam-item-id">📷 ID ${c.id}</div>
+            <div class="cam-item-road">🛣️ ${c.carretera || '—'}  PK ${c.pk || '—'}</div>
+          </div>
+          <div class="cam-item-status ${isActive ? 'on' : 'off'}">
+            ${isActive ? '● En sistema' : '○ No añadida'}
+          </div>
         </div>
         ${!isActive
           ? `<button class="btn btn-primary btn-sm" onclick="addCamaraById(${c.id})">➕ Añadir</button>`
@@ -1114,6 +1225,7 @@ async function addCamaraById(id, desc = '') {
     if (d.success) {
       toast(`Cámara ${id} añadida al sistema ✅`, 'success');
       activeCamIds.add(String(id));
+      renderActiveCameras(allCatalog.filter(c => activeCamIds.has(String(c.id))));
       renderCatalog(allCatalog.filter(c => {
         const q = document.getElementById('cam-filter').value.toLowerCase();
         return !q || String(c.id).includes(q) || (c.carretera || '').toLowerCase().includes(q);

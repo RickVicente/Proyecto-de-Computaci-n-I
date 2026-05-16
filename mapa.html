@@ -145,6 +145,10 @@
             color: #fff;
         }
 
+        body.embedded .btn-logout {
+            display: none !important;
+        }
+
         #stats-bar {
             background: var(--blue-dark);
             padding: 7px 24px;
@@ -539,10 +543,10 @@
                 font-size:18px;
             "></div>
 
-            <div class="pred-label">📅 Fecha</div>
+            <div class="pred-label">Fecha</div>
             <input type="date" class="pred-input" id="pred-fecha" />
 
-            <div class="pred-label">🕐 Hora</div>
+            <div class="pred-label">Hora</div>
             <input type="time" class="pred-input" id="pred-hora" value="08:00" />
 
             <button id="pred-btn" onclick="lanzarPrediccion()" disabled>Predecir tráfico</button>
@@ -568,7 +572,13 @@
         // ─────────────────────────────────────────────
         const CAMARAS_DATA = [];
         let CAMARAS = [];
+        const IS_EMBEDDED = new URLSearchParams(window.location.search).get('embed') === '1';
 
+        if (IS_EMBEDDED) {
+            document.body.classList.add('embedded');
+            const logoutBtn = document.querySelector('.btn-logout');
+            if (logoutBtn) logoutBtn.style.display = 'none';
+        }
 
         // ─────────────────────────────────────────────
         // MAPA — fondo blanco (OSM estándar claro)
@@ -624,10 +634,10 @@
                             .addTo(map)
                             .bindPopup(`
       <div class="custom-popup">
-        <h3>📷 Cámara ${cam.id}</h3>
-        <p>🛣️ <strong>Carretera:</strong> ${cam.road}</p>
-        <p>📍 <strong>PK:</strong> ${cam.pk} km</p>
-        <p>🌐 <strong>Coords:</strong> ${cam.lat.toFixed(5)}, ${cam.lon.toFixed(5)}</p>
+        <h3>Cámara ${cam.id}</h3>
+        <p><strong>Carretera:</strong> ${cam.road}</p>
+        <p><strong>PK:</strong> ${cam.pk} km</p>
+        <p><strong>Coords:</strong> ${cam.lat.toFixed(5)}, ${cam.lon.toFixed(5)}</p>
         <br/>
         <img src="${imgUrl}" width="220"
              style="border-radius:6px;border:1.5px solid #1565c0;display:block;margin-bottom:6px;"
@@ -637,7 +647,7 @@
         <button onclick="abrirPanel(CAMARAS.find(c=>c.id==='${cam.id}'))"
                 style="width:100%;margin-top:8px;padding:7px;background:#1e5799;color:#fff;
                        border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;">
-          🔮 Predecir tráfico aquí
+          Consultar y Predecir tráfico
         </button>
       </div>
     `, { maxWidth: 265 });
@@ -737,7 +747,7 @@
         function renderLegend(div, status) {
             const roads = [...roadsSet].sort();
             div.innerHTML = `
-    <div class="title">🛣️ Carreteras analizadas</div>
+    <div class="title">Carreteras analizadas</div>
     ${roads.map(r => `
       <div class="road-row">
         <div class="road-line" style="background: ${getRoadColor(r)}"></div>
@@ -800,7 +810,7 @@
 
             document.getElementById('loading-bar').style.display = 'none';
             const total = Object.values(waysByRef).reduce((s, a) => s + a.length, 0);
-            document.getElementById('road-status').textContent = `✅ ${total} segmentos cargados`;
+            document.getElementById('road-status').textContent = `${total} segmentos cargados`;
             renderLegend(document.getElementById('legend-panel'), `${total} segmentos OSM cargados`);
         }
 
@@ -817,7 +827,7 @@
                 L.polyline(points, {
                     color: getRoadColor(road), weight: 5, opacity: 0.75, smoothFactor: 2
                 }).addTo(roadLayer)
-                    .bindTooltip(`🛣️ ${road} (aprox.)`, { sticky: true });
+                    .bindTooltip(`${road} (aprox.)`, { sticky: true });
             });
             setTimeout(() => { document.getElementById('loading-bar').style.display = 'none'; }, 4000);
             renderLegend(document.getElementById('legend-panel'), 'Tramos aproximados (OSM no disponible)');
@@ -901,10 +911,10 @@ out geom qt;
             }
 
             predInfo.innerHTML = `
-                <b>📷 Cámara ${cam.id}</b><br/>
-                🛣️ Carretera: <b>${cam.road}</b><br/>
-                📍 PK: ${cam.pk} km<br/>
-                🚦 Tráfico actual:<br/>
+                <b>Cámara ${cam.id}</b><br/>
+                Carretera: <b>${cam.road}</b><br/>
+                PK: <b>${cam.pk} km</b><br/>
+                Tráfico actual:<br/>
                 <div style="
                     font-size:22px;
                     font-weight:800;
@@ -973,7 +983,7 @@ out geom qt;
             };
 
             predBtn.disabled = true;
-            predBtn.textContent = '⏳ Calculando…';
+            predBtn.textContent = 'Calculando…';
             predResult.style.display = 'none';
             apiWarn.style.display = 'none';
 
