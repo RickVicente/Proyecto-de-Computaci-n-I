@@ -1,1 +1,4 @@
 *.pt
+.history/
+*.pyc
+__pycache__/

@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────
+# MADRIVE — docker-compose.yml
+# Levanta la API Flask + Base de Datos MariaDB con un solo comando:
+#   docker-compose up --build
+# ─────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── BASE DE DATOS MariaDB ───────────────────────────────────────
+  db:
+    image: mariadb:10.4
+    container_name: madrive_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ""           # Sin contraseña (igual que XAMPP)
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: pc2               # Crea la base de datos automáticamente
+    ports:
+      - "3306:3306"                     # Expone el puerto para HeidiSQL si lo necesitas
+    volumes:
+      # 1. Script SQL que crea las tablas al arrancar por primera vez
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # 2. Volumen persistente: los datos de la BD sobreviven a reinicios del contenedor
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── API FLASK ───────────────────────────────────────────────────
+  api:
+    build: .                            # Lee el Dockerfile de esta misma carpeta
+    image: madrive-api:latest
+    container_name: madrive_api
+    restart: always
+    ports:
+      - "5000:5000"                     # http://localhost:5000
+    environment:
+      # Variables de conexión a la BD (sobreescriben el 127.0.0.1 del api.py)
+      DB_HOST: db                       # "db" es el nombre del servicio de arriba
+      DB_USER: root
+      DB_PASSWORD: ""
+      DB_NAME: pc2
+      DB_PORT: "3306"
+    volumes:
+      # El modelo YOLO (.pt) y XGBoost (.json) son archivos grandes.
+      # Los montamos como volumen para no tener que reconstruir la imagen cada vez.
+      - ./yolov8x-seg.pt:/app/yolov8x-seg.pt
+      - ./xgboost_model.json:/app/xgboost_model.json
+      # El dataset también lo montamos para que persista entre reinicios
+      - ./CodigosPython/datasets:/app/CodigosPython/datasets
+    depends_on:
+      db:
+        condition: service_healthy      # Espera a que MariaDB esté lista antes de arrancar
+
+volumes:
+  mariadb_data:                         # Volumen persistente para los datos de MariaDB

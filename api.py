@@ -117,8 +117,8 @@ def login():
     cursor.close()
     conn.close()
 
-    # 🛑 Verificar credenciales
-    if user and user["password"] == hashed_pw:
+    # 🛑 Verificar credenciales (Permite hash y texto plano temporalmente)
+    if user and (user["password"] == hashed_pw or user["password"] == password):
         session["user_id"] = user["id"]
         session["rol"] = user["rol"]  # ← aquí guardas el ENUM directamente
 
